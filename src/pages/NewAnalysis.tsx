@@ -65,19 +65,42 @@ const NewAnalysis = () => {
   const uploadFile = async (file: File) => {
     setIsUploading(true);
     
-    // Simulate file upload and parsing
-    setTimeout(() => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('https://n8n.necode.io/webhook/23154e6f-420b-4186-be36-8b7585da797a', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const result = await response.json();
       setIsUploading(false);
+      
       toast({
         title: "PDF subido correctamente",
         description: "Procesando datos de la valoración...",
       });
       
-      // Redirect to verification step
+      // Redirect to verification step with the case ID from webhook response
+      const caseId = result.caseId || 'demo-case-id';
       setTimeout(() => {
-        window.location.href = '/app/verificacion/demo-case-id';
+        window.location.href = `/app/verificacion/${caseId}`;
       }, 1500);
-    }, 2000);
+      
+    } catch (error) {
+      setIsUploading(false);
+      console.error('Upload error:', error);
+      toast({
+        title: "Error al subir PDF",
+        description: "No se pudo procesar el archivo. Inténtalo de nuevo.",
+        variant: "destructive"
+      });
+    }
   };
 
   const removeFile = () => {
