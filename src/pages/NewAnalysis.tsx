@@ -79,6 +79,10 @@ const NewAnalysis = () => {
       }
       
       const result = await response.json();
+      
+      // Store webhook response data for verification step
+      sessionStorage.setItem('webhookResponseData', JSON.stringify(result));
+      
       setIsUploading(false);
       
       toast({

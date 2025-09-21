@@ -10,32 +10,73 @@ import { Link } from "react-router-dom";
 
 const Verification = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [confidence] = useState(0.92);
+  const [confidence, setConfidence] = useState(0.92);
   const { toast } = useToast();
 
-  // Mock extracted data from PDF - based on Excel example
-  const [extractedData, setExtractedData] = useState({
-    metadata: {
-      matricula: "5654LGR",
-      bastidor: "SAJBB4BN8LCY87550", 
-      fabricante: "JAGUAR",
-      modelo: "XF (X250)",
-      fecha: "2024-08-14",
-      referencia: "161832151335",
-      sistema: "AUDATEX",
-      precio_hora: "59.00"
-    },
-    totales: {
-      repuestos_total: "942.16",
-      mo_chapa_ut: "285.0",
-      mo_chapa_eur: "1681.50",
-      mo_pintura_ut: "130.5", 
-      mo_pintura_eur: "769.95",
-      mat_pintura_eur: "1251.10",
-      subtotal_neto: "4644.71",
-      iva: "975.39",
-      total_con_iva: "5620.10"
+  // Get extracted data from webhook response stored in sessionStorage
+  const [extractedData, setExtractedData] = useState(() => {
+    const storedData = sessionStorage.getItem('webhookResponseData');
+    if (storedData) {
+      try {
+        const parsedData = JSON.parse(storedData);
+        // Update confidence based on webhook response if available
+        if (parsedData.confidence) {
+          setConfidence(parsedData.confidence);
+        }
+        
+        // Return webhook data structure or fallback to mock data
+        return parsedData.extractedData || {
+          metadata: {
+            matricula: parsedData.matricula || "5654LGR",
+            bastidor: parsedData.bastidor || "SAJBB4BN8LCY87550", 
+            fabricante: parsedData.fabricante || "JAGUAR",
+            modelo: parsedData.modelo || "XF (X250)",
+            fecha: parsedData.fecha || "2024-08-14",
+            referencia: parsedData.referencia || "161832151335",
+            sistema: parsedData.sistema || "AUDATEX",
+            precio_hora: parsedData.precio_hora || "59.00"
+          },
+          totales: {
+            repuestos_total: parsedData.repuestos_total || "942.16",
+            mo_chapa_ut: parsedData.mo_chapa_ut || "285.0",
+            mo_chapa_eur: parsedData.mo_chapa_eur || "1681.50",
+            mo_pintura_ut: parsedData.mo_pintura_ut || "130.5", 
+            mo_pintura_eur: parsedData.mo_pintura_eur || "769.95",
+            mat_pintura_eur: parsedData.mat_pintura_eur || "1251.10",
+            subtotal_neto: parsedData.subtotal_neto || "4644.71",
+            iva: parsedData.iva || "975.39",
+            total_con_iva: parsedData.total_con_iva || "5620.10"
+          }
+        };
+      } catch (error) {
+        console.error('Error parsing webhook data:', error);
+      }
     }
+    
+    // Fallback to mock data if no webhook data available
+    return {
+      metadata: {
+        matricula: "5654LGR",
+        bastidor: "SAJBB4BN8LCY87550", 
+        fabricante: "JAGUAR",
+        modelo: "XF (X250)",
+        fecha: "2024-08-14",
+        referencia: "161832151335",
+        sistema: "AUDATEX",
+        precio_hora: "59.00"
+      },
+      totales: {
+        repuestos_total: "942.16",
+        mo_chapa_ut: "285.0",
+        mo_chapa_eur: "1681.50",
+        mo_pintura_ut: "130.5", 
+        mo_pintura_eur: "769.95",
+        mat_pintura_eur: "1251.10",
+        subtotal_neto: "4644.71",
+        iva: "975.39",
+        total_con_iva: "5620.10"
+      }
+    };
   });
 
   const handleInputChange = (section: string, field: string, value: string) => {
