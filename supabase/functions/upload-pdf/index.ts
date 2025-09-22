@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     console.log(`Processing file: ${file.name}, size: ${file.size}`)
 
     // Forward the request to the n8n webhook
-    const webhookUrl = 'https://n8n.necode.io/webhook/23154e6f-420b-4186-be36-8b7585da797a'
+    const webhookUrl = 'https://bot-bitrix-n8n.uhcoic.easypanel.host/webhook/23154e6f-420b-4186-be36-8b7585da797a'
     
     // Create new FormData for the webhook request
     const webhookFormData = new FormData()
