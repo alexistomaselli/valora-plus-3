@@ -72,7 +72,7 @@ const NewAnalysis = () => {
       const response = await fetch('https://vhgdwravbfkzphhbppma.supabase.co/functions/v1/upload-pdf', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoZ2R3cmF2YmZrenBoaGJwcG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3Mjc3OTEsImV4cCI6MjA1NTMwMzc5MX0.WCfnYJS-dHYk7oAl0ALPzfv3owTvx5CTFnYgHGs5u4k'}`,
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoZ2R3cmF2YmZrenBoaGJwcG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3Mjc3OTEsImV4cCI6MjA1NTMwMzc5MX0.WCfnYJS-dHYk7oAl0ALPzfv3owTvx5CTFnYgHGs5u4k',
         },
         body: formData,
       });
