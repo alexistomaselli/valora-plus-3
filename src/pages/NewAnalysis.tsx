@@ -82,19 +82,22 @@ const NewAnalysis = () => {
       }
       
       const result = await response.json();
+      console.log('Webhook response:', result);
       
-      // Store webhook response data for verification step
+      // Store the complete webhook response data for verification step
       sessionStorage.setItem('webhookResponseData', JSON.stringify(result));
       
       setIsUploading(false);
       
       toast({
         title: "PDF subido correctamente",
-        description: "Procesando datos de la valoración...",
+        description: "Datos extraídos y procesados.",
       });
       
-      // Redirect to verification step with the case ID from webhook response
-      const caseId = result.caseId || 'demo-case-id';
+      // Extract caseId from response or generate one
+      const caseId = result.caseId || result.id || `case-${Date.now()}`;
+      
+      // Redirect to verification step with the case ID
       setTimeout(() => {
         window.location.href = `/app/verificacion/${caseId}`;
       }, 1500);
