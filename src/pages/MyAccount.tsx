@@ -211,7 +211,7 @@ const MyAccount = () => {
 
             <Card className="bg-gradient-card border-border/50">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
+                <div className="space-y-4">
                   <div className="flex items-center space-x-3">
                     <div className="p-2 bg-primary/10 rounded">
                       <BarChart3 className="h-5 w-5 text-primary" />
@@ -221,7 +221,7 @@ const MyAccount = () => {
                       <p className="text-xl font-bold text-foreground">26.09€/h</p>
                     </div>
                   </div>
-                  <Button size="sm" variant="outline">
+                  <Button size="sm" variant="outline" className="w-full">
                     Calcular
                   </Button>
                 </div>
