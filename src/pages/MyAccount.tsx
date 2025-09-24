@@ -162,7 +162,7 @@ const MyAccount = () => {
         {/* Analysis history and stats */}
         <div className="lg:col-span-2 space-y-6">
           {/* Stats cards */}
-          <div className="grid md:grid-cols-3 gap-4">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
             <Card className="bg-gradient-card border-border/50">
               <CardContent className="p-4">
                 <div className="flex items-center space-x-3">
@@ -205,6 +205,25 @@ const MyAccount = () => {
                       {formatCurrency(totalMargin)}
                     </p>
                   </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-card border-border/50">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 bg-primary/10 rounded">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Coste Hora</p>
+                      <p className="text-xl font-bold text-foreground">26.09€/h</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="outline">
+                    Calcular
+                  </Button>
                 </div>
               </CardContent>
             </Card>
