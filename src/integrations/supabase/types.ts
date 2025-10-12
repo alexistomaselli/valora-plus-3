@@ -35,6 +35,36 @@ export type Database = {
         }
         Relationships: []
       }
+      profiles: {
+        Row: {
+          id: string
+          email: string
+          role: 'admin' | 'admin_mechanic'
+          full_name: string | null
+          workshop_name: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id: string
+          email: string
+          role: 'admin' | 'admin_mechanic'
+          full_name?: string | null
+          workshop_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          email?: string
+          role?: 'admin' | 'admin_mechanic'
+          full_name?: string | null
+          workshop_name?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       n8n_chat_histories: {
         Row: {
           id: number

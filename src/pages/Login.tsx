@@ -1,8 +1,34 @@
 import { Calculator, ArrowLeft } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { LoginForm } from "@/components/auth/LoginForm";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Login = () => {
+  const { session, loading } = useAuth();
+  const navigate = useNavigate();
+
+  // Redirigir a dashboard si el usuario ya está autenticado
+  useEffect(() => {
+    if (!loading && session) {
+      navigate("/app/micuenta", { replace: true });
+    }
+  }, [session, loading, navigate]);
+
+  // Mostrar loading mientras se verifica la autenticación
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-white"></div>
+      </div>
+    );
+  }
+
+  // Si hay sesión, no mostrar nada (se está redirigiendo)
+  if (session) {
+    return null;
+  }
+
   return (
     <div className="min-h-screen bg-gradient-hero flex items-center justify-center p-4">
       <div className="w-full max-w-md">

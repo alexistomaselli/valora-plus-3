@@ -6,20 +6,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 const MyAccount = () => {
-  const { user, profile, signOut, isLoading } = useAuth();
+  const { user, profile, signOut, loading } = useAuth();
   const navigate = useNavigate();
   
-  // Datos del usuario
-  const userData = {
-    email: user?.email || "demo@taller.es",
-    taller: profile?.workshop_name || "Taller Demo SL",
-    phone: "612 345 678",
-    created_at: profile?.created_at || new Date().toISOString(),
-    monthlyUsage: 0,
-    maxUsage: 3,
-    role: profile?.role || "admin_mechanic"
-  };
 
+  
   // Mock analysis history
   const analyses = [
     {
@@ -33,6 +24,20 @@ const MyAccount = () => {
     },
     // Additional mock data for demonstration
   ];
+
+  // Datos del usuario (dinámicos desde el usuario autenticado)
+  const userData = {
+    email: user?.email || "No especificado",
+    full_name: user?.identities?.[0]?.identity_data?.full_name || 
+               user?.user_metadata?.display_name || 
+               user?.email?.split('@')[0] || 
+               "Usuario",
+    taller: profile?.workshop_name || "Taller no especificado",
+    created_at: profile?.created_at || new Date().toISOString(),
+    monthlyUsage: 0, // TODO: Obtener del backend cuando esté implementado
+    maxUsage: 3, // TODO: Obtener del plan del usuario
+    role: profile?.role || "admin_mechanic"
+  };
 
   const formatCurrency = (value: number) => {
     return value.toLocaleString('es-ES', { 
@@ -65,7 +70,7 @@ const MyAccount = () => {
         </p>
       </div>
       
-      {isLoading ? (
+      {loading ? (
         <div className="flex flex-col items-center justify-center py-12">
           <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
           <p className="text-muted-foreground">Cargando información del usuario...</p>
@@ -79,10 +84,14 @@ const MyAccount = () => {
             <CardHeader>
               <CardTitle className="flex items-center space-x-2">
                 <User className="h-5 w-5 text-primary" />
-                <span>Perfil del Taller</span>
+                <span>Perfil del Usuario</span>
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Nombre completo</p>
+                <p className="font-medium text-foreground">{userData.full_name}</p>
+              </div>
               <div>
                 <p className="text-sm text-muted-foreground">Nombre del taller</p>
                 <p className="font-medium text-foreground">{userData.taller}</p>
@@ -90,10 +99,6 @@ const MyAccount = () => {
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
                 <p className="font-medium text-foreground">{userData.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Teléfono</p>
-                <p className="font-medium text-foreground">{userData.phone || 'No especificado'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Miembro desde</p>
@@ -107,8 +112,8 @@ const MyAccount = () => {
                 <Button variant="outline" className="w-full">
                   Editar Perfil
                 </Button>
-                <Button variant="destructive" className="w-full" onClick={() => {
-                  signOut();
+                <Button variant="destructive" className="w-full" onClick={async () => {
+                  await signOut();
                   navigate('/login');
                 }}>
                   Cerrar sesión
