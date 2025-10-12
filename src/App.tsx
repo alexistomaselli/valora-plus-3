@@ -12,30 +12,40 @@ import WorkshopCosts from "./pages/WorkshopCosts";
 import Results from "./pages/Results";
 import MyAccount from "./pages/MyAccount";
 import NotFound from "./pages/NotFound";
+import { AuthProvider } from "./contexts/AuthContext";
+import { ProtectedRoute } from "./components/auth/ProtectedRoute";
+import Unauthorized from "./pages/Unauthorized";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/app" element={<AppLayout />}>
-            <Route path="nuevo" element={<NewAnalysis />} />
-            <Route path="verificacion/:caseId" element={<Verification />} />
-            <Route path="costes/:caseId" element={<WorkshopCosts />} />
-            <Route path="resultados/:caseId" element={<Results />} />
-            <Route path="micuenta" element={<MyAccount />} />
-          </Route>
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
+    <AuthProvider>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<Index />} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/unauthorized" element={<Unauthorized />} />
+            <Route path="/app" element={
+              <ProtectedRoute>
+                <AppLayout />
+              </ProtectedRoute>
+            }>
+              <Route path="nuevo" element={<NewAnalysis />} />
+              <Route path="verificacion/:caseId" element={<Verification />} />
+              <Route path="costes/:caseId" element={<WorkshopCosts />} />
+              <Route path="resultados/:caseId" element={<Results />} />
+              <Route path="micuenta" element={<MyAccount />} />
+            </Route>
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </AuthProvider>
   </QueryClientProvider>
 );
 

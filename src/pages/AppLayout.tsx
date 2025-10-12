@@ -1,15 +1,19 @@
-import { Outlet } from "react-router-dom";
+import { Outlet, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Calculator, User, LogOut, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const AppLayout = () => {
-  // Mock user data - in real app this would come from auth context
-  const user = {
-    email: "demo@taller.es",
-    taller: "Taller Demo SL",
-    monthlyUsage: 1,
+  const { user, profile, signOut } = useAuth();
+  const navigate = useNavigate();
+  
+  // Datos del usuario desde el contexto de autenticación
+  const userData = {
+    email: user?.email || "demo@taller.es",
+    taller: profile?.workshop_name || "Taller Demo SL",
+    monthlyUsage: 0,
     maxUsage: 3
   };
 
@@ -25,22 +29,30 @@ const AppLayout = () => {
           
           <div className="flex items-center space-x-4">
             {/* Usage indicator */}
-            <Badge variant={user.monthlyUsage >= user.maxUsage ? "destructive" : "secondary"}>
-              {user.monthlyUsage}/{user.maxUsage} análisis este mes
+            <Badge variant={userData.monthlyUsage >= userData.maxUsage ? "destructive" : "secondary"}>
+              {userData.monthlyUsage}/{userData.maxUsage} análisis este mes
             </Badge>
             
             {/* User menu */}
             <div className="flex items-center space-x-2">
               <div className="text-right text-sm">
-                <div className="font-medium text-foreground">{user.taller}</div>
-                <div className="text-muted-foreground">{user.email}</div>
+                <div className="font-medium text-foreground">{userData.taller}</div>
+                <div className="text-muted-foreground">{userData.email}</div>
               </div>
               <Link to="/app/micuenta">
                 <Button variant="ghost" size="sm" className="p-2">
                   <User className="h-4 w-4" />
                 </Button>
               </Link>
-              <Button variant="ghost" size="sm" className="p-2 text-muted-foreground hover:text-destructive">
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="p-2 text-muted-foreground hover:text-destructive"
+                onClick={() => {
+                  signOut();
+                  navigate('/login');
+                }}
+              >
                 <LogOut className="h-4 w-4" />
               </Button>
             </div>

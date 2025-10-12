@@ -2,17 +2,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { User, BarChart3, Calendar, FileText, TrendingUp, Crown, ArrowRight } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
 
 const MyAccount = () => {
-  // Mock user data - in real app this would come from API
-  const user = {
-    email: "demo@taller.es",
-    taller: "Taller Demo SL",
+  const { user, profile, signOut, isLoading } = useAuth();
+  const navigate = useNavigate();
+  
+  // Datos del usuario
+  const userData = {
+    email: user?.email || "demo@taller.es",
+    taller: profile?.workshop_name || "Taller Demo SL",
     phone: "612 345 678",
-    created_at: "2024-01-15",
-    monthlyUsage: 1,
-    maxUsage: 3
+    created_at: profile?.created_at || new Date().toISOString(),
+    monthlyUsage: 0,
+    maxUsage: 3,
+    role: profile?.role || "admin_mechanic"
   };
 
   // Mock analysis history
@@ -59,6 +64,13 @@ const MyAccount = () => {
           Gestiona tu perfil y revisa el historial de análisis
         </p>
       </div>
+      
+      {isLoading ? (
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+          <p className="text-muted-foreground">Cargando información del usuario...</p>
+        </div>
+      ) : (
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* User profile */}
@@ -73,36 +85,48 @@ const MyAccount = () => {
             <CardContent className="space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground">Nombre del taller</p>
-                <p className="font-medium text-foreground">{user.taller}</p>
+                <p className="font-medium text-foreground">{userData.taller}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium text-foreground">{user.email}</p>
+                <p className="font-medium text-foreground">{userData.email}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Teléfono</p>
-                <p className="font-medium text-foreground">{user.phone || 'No especificado'}</p>
+                <p className="font-medium text-foreground">{userData.phone || 'No especificado'}</p>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Miembro desde</p>
-                <p className="font-medium text-foreground">{formatDate(user.created_at)}</p>
+                <p className="font-medium text-foreground">{formatDate(userData.created_at)}</p>
               </div>
-              <Button variant="outline" className="w-full">
-                Editar Perfil
-              </Button>
+              <div>
+                <p className="text-sm text-muted-foreground">Rol</p>
+                <p className="font-medium text-foreground">{userData.role === 'admin' ? 'Administrador' : 'Taller'}</p>
+              </div>
+              <div className="space-y-2 pt-2">
+                <Button variant="outline" className="w-full">
+                  Editar Perfil
+                </Button>
+                <Button variant="destructive" className="w-full" onClick={() => {
+                  signOut();
+                  navigate('/login');
+                }}>
+                  Cerrar sesión
+                </Button>
+              </div>
             </CardContent>
           </Card>
 
           {/* Usage quota */}
-          <Card className={user.monthlyUsage >= user.maxUsage ? "border-warning" : "border-border"}>
+          <Card className={userData.monthlyUsage >= userData.maxUsage ? "border-warning" : "border-border"}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
                   <BarChart3 className="h-5 w-5 text-primary" />
                   <span>Uso Mensual</span>
                 </div>
-                <Badge variant={user.monthlyUsage >= user.maxUsage ? "destructive" : "secondary"}>
-                  {user.monthlyUsage}/{user.maxUsage}
+                <Badge variant={userData.monthlyUsage >= userData.maxUsage ? "destructive" : "secondary"}>
+                  {userData.monthlyUsage}/{userData.maxUsage}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -111,19 +135,19 @@ const MyAccount = () => {
                 <div>
                   <div className="flex justify-between text-sm mb-2">
                     <span>Análisis utilizados</span>
-                    <span>{user.monthlyUsage} de {user.maxUsage}</span>
+                    <span>{userData.monthlyUsage} de {userData.maxUsage}</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
                     <div 
                       className={`h-2 rounded-full transition-all duration-300 ${
-                        user.monthlyUsage >= user.maxUsage ? 'bg-destructive' : 'bg-gradient-primary'
+                        userData.monthlyUsage >= userData.maxUsage ? 'bg-destructive' : 'bg-gradient-primary'
                       }`}
-                      style={{ width: `${(user.monthlyUsage / user.maxUsage) * 100}%` }}
+                      style={{ width: `${(userData.monthlyUsage / userData.maxUsage) * 100}%` }}
                     />
                   </div>
                 </div>
                 
-                {user.monthlyUsage >= user.maxUsage ? (
+                {userData.monthlyUsage >= userData.maxUsage ? (
                   <div className="bg-warning-soft border border-warning/20 rounded-lg p-4">
                     <div className="flex items-start space-x-3">
                       <Crown className="h-5 w-5 text-warning mt-0.5" />
@@ -145,7 +169,7 @@ const MyAccount = () => {
                 ) : (
                   <div className="text-center">
                     <p className="text-sm text-muted-foreground mb-3">
-                      Te quedan {user.maxUsage - user.monthlyUsage} análisis gratuitos este mes
+                      Te quedan {userData.maxUsage - userData.monthlyUsage} análisis gratuitos este mes
                     </p>
                     <Link to="/app/nuevo">
                       <Button size="sm" className="bg-gradient-primary text-primary-foreground shadow-glow">
@@ -305,6 +329,7 @@ const MyAccount = () => {
           </Card>
         </div>
       </div>
+      )}
     </div>
   );
 };
