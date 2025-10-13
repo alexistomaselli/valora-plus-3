@@ -3,9 +3,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Calculator, FileText, TrendingUp, Users, Shield, Zap } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserAccountDropdown } from "@/components/UserAccountDropdown";
 import heroImage from "@/assets/hero-analytics.jpg";
 
 const Index = () => {
+  const { user } = useAuth();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -16,15 +20,23 @@ const Index = () => {
             <span className="text-xl font-bold text-foreground">Valora Plus Analytics</span>
           </div>
           <div className="flex items-center space-x-4">
-            <Link to="/login">
-              <Button variant="outline">Iniciar Sesión</Button>
-            </Link>
-            <Link to="/register">
-              <Button className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300">
-                Probar Gratis
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+            {user ? (
+              // Mostrar dropdown cuando el usuario está logueado
+              <UserAccountDropdown />
+            ) : (
+              // Mostrar botones de login/registro cuando no está logueado
+              <>
+                <Link to="/login">
+                  <Button variant="outline">Iniciar Sesión</Button>
+                </Link>
+                <Link to="/register">
+                  <Button className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300">
+                    Probar Gratis
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -46,12 +58,23 @@ const Index = () => {
                 Sube PDFs de Audatex, GT o Solera y obtén informes detallados de rentabilidad al instante.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link to="/register">
-                  <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300 animate-pulse-glow">
-                    Empezar Análisis Gratis
-                    <ArrowRight className="ml-2 h-5 w-5" />
-                  </Button>
-                </Link>
+                {user ? (
+                  // Si el usuario está logueado, mostrar botón para ir a la app
+                  <Link to="/app/nuevo">
+                    <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300">
+                      Crear Nuevo Análisis
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                ) : (
+                  // Si no está logueado, mostrar botón de registro
+                  <Link to="/register">
+                    <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300 animate-pulse-glow">
+                      Empezar Análisis Gratis
+                      <ArrowRight className="ml-2 h-5 w-5" />
+                    </Button>
+                  </Link>
+                )}
                 <Button size="lg" variant="outline" className="border-primary/20 hover:bg-primary-soft">
                   Ver Demo
                 </Button>
@@ -162,18 +185,39 @@ const Index = () => {
       {/* CTA Section */}
       <section className="py-20 bg-muted/30">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
-            ¿Listo para optimizar tu rentabilidad?
-          </h2>
-          <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
-            Comienza con 3 análisis gratuitos. Sin compromiso, sin tarjeta de crédito.
-          </p>
-          <Link to="/register">
-            <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300">
-              Empezar Ahora - Es Gratis
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </Link>
+          {user ? (
+            // CTA para usuarios logueados
+            <>
+              <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+                ¡Comienza tu próximo análisis!
+              </h2>
+              <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+                Sube un nuevo PDF de valoración y descubre la rentabilidad real de tu próximo trabajo.
+              </p>
+              <Link to="/app/nuevo">
+                <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300">
+                  Crear Nuevo Análisis
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </>
+          ) : (
+            // CTA para usuarios no logueados
+            <>
+              <h2 className="text-3xl lg:text-4xl font-bold text-foreground mb-4">
+                ¿Listo para optimizar tu rentabilidad?
+              </h2>
+              <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+                Comienza con 3 análisis gratuitos. Sin compromiso, sin tarjeta de crédito.
+              </p>
+              <Link to="/register">
+                <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300">
+                  Empezar Ahora - Es Gratis
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </Button>
+              </Link>
+            </>
+          )}
         </div>
       </section>
 
