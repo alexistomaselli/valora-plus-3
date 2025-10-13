@@ -6,7 +6,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 
 const MyAccount = () => {
-  const { user, profile, signOut, loading } = useAuth();
+  const { user, profile, workshop, signOut, loading } = useAuth();
   const navigate = useNavigate();
   
 
@@ -28,11 +28,12 @@ const MyAccount = () => {
   // Datos del usuario (dinámicos desde el usuario autenticado)
   const userData = {
     email: user?.email || "No especificado",
-    full_name: user?.identities?.[0]?.identity_data?.full_name || 
+    full_name: profile?.full_name || 
+               user?.identities?.[0]?.identity_data?.full_name || 
                user?.user_metadata?.display_name || 
                user?.email?.split('@')[0] || 
                "Usuario",
-    taller: profile?.workshop_name || "Taller no especificado",
+    taller: workshop?.name || "Taller no especificado",
     created_at: profile?.created_at || new Date().toISOString(),
     monthlyUsage: 0, // TODO: Obtener del backend cuando esté implementado
     maxUsage: 3, // TODO: Obtener del plan del usuario

@@ -19,7 +19,7 @@ const Index = () => {
             <Link to="/login">
               <Button variant="outline">Iniciar Sesión</Button>
             </Link>
-            <Link to="/app/nuevo">
+            <Link to="/register">
               <Button className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300">
                 Probar Gratis
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -46,7 +46,7 @@ const Index = () => {
                 Sube PDFs de Audatex, GT o Solera y obtén informes detallados de rentabilidad al instante.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
-                <Link to="/app/nuevo">
+                <Link to="/register">
                   <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300 animate-pulse-glow">
                     Empezar Análisis Gratis
                     <ArrowRight className="ml-2 h-5 w-5" />
@@ -168,7 +168,7 @@ const Index = () => {
           <p className="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
             Comienza con 3 análisis gratuitos. Sin compromiso, sin tarjeta de crédito.
           </p>
-          <Link to="/app/nuevo">
+          <Link to="/register">
             <Button size="lg" className="bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-lg transition-all duration-300">
               Empezar Ahora - Es Gratis
               <ArrowRight className="ml-2 h-5 w-5" />

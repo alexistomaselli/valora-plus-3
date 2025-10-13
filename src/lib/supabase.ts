@@ -16,7 +16,19 @@ export type Profile = {
   email: string;
   role: 'admin' | 'admin_mechanic';
   full_name: string | null;
-  workshop_name: string | null;
+  workshop_id: string | null;
+  phone: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+// Tipo para workshops
+export type Workshop = {
+  id: string;
+  name: string;
+  email: string;
+  phone: string | null;
+  address: string | null;
   created_at: string;
   updated_at: string;
 };

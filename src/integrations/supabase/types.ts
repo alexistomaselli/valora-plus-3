@@ -41,7 +41,8 @@ export type Database = {
           email: string
           role: 'admin' | 'admin_mechanic'
           full_name: string | null
-          workshop_name: string | null
+          workshop_id: string | null
+          phone: string | null
           created_at: string
           updated_at: string
         }
@@ -50,7 +51,8 @@ export type Database = {
           email: string
           role: 'admin' | 'admin_mechanic'
           full_name?: string | null
-          workshop_name?: string | null
+          workshop_id?: string | null
+          phone?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -59,7 +61,46 @@ export type Database = {
           email?: string
           role?: 'admin' | 'admin_mechanic'
           full_name?: string | null
-          workshop_name?: string | null
+          workshop_id?: string | null
+          phone?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      workshops: {
+        Row: {
+          id: string
+          name: string
+          email: string
+          phone: string | null
+          address: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          email: string
+          phone?: string | null
+          address?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          email?: string
+          phone?: string | null
+          address?: string | null
           created_at?: string
           updated_at?: string
         }

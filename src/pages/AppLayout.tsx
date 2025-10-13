@@ -1,13 +1,12 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Calculator, User, LogOut, BarChart3 } from "lucide-react";
+import { Calculator, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { UserAccountDropdown } from "@/components/UserAccountDropdown";
 import { useEffect } from "react";
 
 const AppLayout = () => {
-  const { user, profile, signOut, session, loading } = useAuth();
+  const { session, loading } = useAuth();
   const navigate = useNavigate();
 
   // Redirigir a login si no hay sesión
@@ -17,14 +16,8 @@ const AppLayout = () => {
     }
   }, [session, loading, navigate]);
   
-  // Datos del usuario desde el contexto de autenticación (dinámicos)
-  const userData = {
-    email: user?.email || "No especificado",
-    taller: profile?.workshop_name || "Taller no especificado",
-    full_name: user?.identities?.[0]?.identity_data?.full_name || 
-               user?.user_metadata?.display_name || 
-               user?.email?.split('@')[0] || 
-               "Usuario",
+  // Datos de uso que se pasarán al dropdown
+  const usageData = {
     monthlyUsage: 0, // TODO: Obtener del backend cuando esté implementado
     maxUsage: 3 // TODO: Obtener del plan del usuario
   };
@@ -39,35 +32,11 @@ const AppLayout = () => {
             <span className="text-lg font-semibold text-foreground">Valora Plus</span>
           </Link>
           
-          <div className="flex items-center space-x-4">
-            {/* Usage indicator */}
-            <Badge variant={userData.monthlyUsage >= userData.maxUsage ? "destructive" : "secondary"}>
-              {userData.monthlyUsage}/{userData.maxUsage} análisis este mes
-            </Badge>
-            
-            {/* User menu */}
-            <div className="flex items-center space-x-2">
-              <div className="text-right text-sm">
-                <div className="font-medium text-foreground">{userData.full_name}</div>
-                <div className="text-muted-foreground">{userData.email}</div>
-              </div>
-              <Link to="/app/micuenta">
-                <Button variant="ghost" size="sm" className="p-2">
-                  <User className="h-4 w-4" />
-                </Button>
-              </Link>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="p-2 text-muted-foreground hover:text-destructive"
-                onClick={() => {
-                  console.log('🔴 LOGOUT: Button clicked!');
-                  signOut();
-                }}
-              >
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
+          <div className="flex items-center">
+            <UserAccountDropdown 
+              monthlyUsage={usageData.monthlyUsage} 
+              maxUsage={usageData.maxUsage} 
+            />
           </div>
         </div>
       </header>

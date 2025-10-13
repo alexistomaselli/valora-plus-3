@@ -1,16 +1,18 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { Session, User } from '@supabase/supabase-js';
-import { supabase, Profile } from '@/lib/supabase';
+import { supabase, Profile, Workshop } from '@/lib/supabase';
 import { useToast } from '@/components/ui/use-toast';
 
 interface AuthContextType {
   session: Session | null;
   user: User | null;
   profile: Profile | null;
+  workshop: Workshop | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  refreshWorkshop: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,6 +29,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [workshop, setWorkshop] = useState<Workshop | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -50,39 +53,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       ]) as any;
 
       if (error) {
-        console.warn('Profile fetch unavailable:', error.message);
+        // console.warn('Profile fetch unavailable:', error.message);
         return null;
       }
 
       return data;
     } catch (error: any) {
-      console.warn('Profile service unavailable:', error.message);
+      // console.warn('Profile service unavailable:', error.message);
       return null;
     }
   };
 
   // Función para actualizar el estado de autenticación (optimizada)
   const updateAuthState = async (session: Session | null) => {
-    console.log('🔴 UPDATE AUTH STATE: session exists:', !!session);
+    // console.log('🔴 UPDATE AUTH STATE: session exists:', !!session);
     setSession(session);
     setUser(session?.user ?? null);
     
     // Establecer loading false inmediatamente para mejor UX
-    console.log('🔴 UPDATE AUTH STATE: Setting loading to false immediately');
+    // console.log('🔴 UPDATE AUTH STATE: Setting loading to false immediately');
     setLoading(false);
 
     if (session?.user) {
-      console.log('🔴 UPDATE AUTH STATE: User found, fetching profile in background');
+      // console.log('🔴 UPDATE AUTH STATE: User found, fetching profile in background');
       // Cargar perfil en background sin bloquear la UI
-      fetchProfile(session.user.id).then(userProfile => {
+      fetchProfile(session.user.id).then(async (userProfile) => {
         setProfile(userProfile);
+        
+        // Si el perfil tiene workshop_id, cargar también el workshop
+        if (userProfile?.workshop_id) {
+          try {
+            const { data: workshopData, error } = await supabase
+              .from('workshops')
+              .select('*')
+              .eq('id', userProfile.workshop_id)
+              .single();
+
+            if (!error && workshopData) {
+              setWorkshop(workshopData);
+            }
+          } catch (error) {
+            console.error('Error loading workshop in background:', error);
+          }
+        } else {
+          setWorkshop(null);
+        }
       }).catch(error => {
-        console.warn('Background profile fetch failed:', error);
+        // console.warn('Background profile fetch failed:', error);
         setProfile(null);
+        setWorkshop(null);
       });
     } else {
-      console.log('🔴 UPDATE AUTH STATE: No user, clearing profile');
+      // console.log('🔴 UPDATE AUTH STATE: No user, clearing profile');
       setProfile(null);
+      setWorkshop(null);
     }
   };
 
@@ -96,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // Timeout de seguridad más corto para mejor UX
         timeoutId = setTimeout(() => {
           if (mounted) {
-            console.warn('Auth initialization timeout - setting loading to false');
+            // console.warn('Auth initialization timeout - setting loading to false');
             setLoading(false);
           }
         }, 1500); // Reducido a 1.5 segundos
@@ -118,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         if (error) {
-          console.warn('Supabase session unavailable:', error.message);
+          // console.warn('Supabase session unavailable:', error.message);
           if (mounted) {
             setLoading(false);
           }
@@ -138,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 setProfile(userProfile);
               }
             }).catch(error => {
-              console.warn('Background profile fetch failed:', error);
+              // console.warn('Background profile fetch failed:', error);
             });
           } else {
             setProfile(null);
@@ -147,7 +171,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error: any) {
         // Solo mostrar warning si no es un timeout esperado
         if (error.message !== 'Supabase connection timeout') {
-          console.warn('Auth initialization issue:', error.message);
+          // console.warn('Auth initialization issue:', error.message);
         }
         if (timeoutId) {
           clearTimeout(timeoutId);
@@ -163,10 +187,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Escuchar cambios en la autenticación
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('🔴 AUTH STATE CHANGE:', event, session?.user?.email);
+        // console.log('🔴 AUTH STATE CHANGE:', event, session?.user?.email);
         
         if (mounted) {
-          console.log('🔴 AUTH STATE: Calling updateAuthState with session:', !!session);
+          // console.log('🔴 AUTH STATE: Calling updateAuthState with session:', !!session);
           await updateAuthState(session);
         }
       }
@@ -185,7 +209,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
     try {
       setLoading(true);
-      console.log('🔐 AUTH: Starting signIn process');
+      // console.log('🔐 AUTH: Starting signIn process');
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -193,7 +217,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       });
 
       if (error) {
-        console.log('🔐 AUTH: SignIn error:', error.message);
+        // console.log('🔐 AUTH: SignIn error:', error.message);
         setLoading(false); // Solo establecer loading false en caso de error
         toast({
           title: "Error de autenticación",
@@ -204,7 +228,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (data.session) {
-        console.log('🔐 AUTH: SignIn successful, session created');
+        // console.log('🔐 AUTH: SignIn successful, session created');
         // NO establecer setLoading(false) aquí - dejar que onAuthStateChange lo maneje
         toast({
           title: "Inicio de sesión exitoso",
@@ -213,11 +237,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return { success: true };
       }
 
-      console.log('🔐 AUTH: SignIn failed - no session created');
+      // console.log('🔐 AUTH: SignIn failed - no session created');
       setLoading(false);
       return { success: false, error: "No se pudo iniciar sesión" };
     } catch (error) {
-      console.log('🔐 AUTH: SignIn exception:', error);
+      // console.log('🔐 AUTH: SignIn exception:', error);
       const errorMessage = error instanceof Error ? error.message : 'Error desconocido';
       setLoading(false); // Solo establecer loading false en caso de error
       toast({
@@ -232,11 +256,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // Función de cierre de sesión
   const signOut = async (): Promise<void> => {
-    console.log('🔴 LOGOUT: signOut function called');
+    // console.log('🔴 LOGOUT: signOut function called');
     
     // Función para limpiar todo localmente
     const forceLocalLogout = () => {
-      console.log('🔴 LOGOUT: Forcing complete local logout');
+      // console.log('🔴 LOGOUT: Forcing complete local logout');
       setSession(null);
       setUser(null);
       setProfile(null);
@@ -249,14 +273,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
              localStorage.removeItem(key);
            }
          });
-         console.log('🔴 LOGOUT: LocalStorage cleared');
+         // console.log('🔴 LOGOUT: LocalStorage cleared');
        } catch (e) {
-         console.warn('🔴 LOGOUT: Error clearing localStorage:', e);
+         // console.warn('🔴 LOGOUT: Error clearing localStorage:', e);
        }
     };
     
     try {
-      console.log('🔴 LOGOUT: Attempting Supabase signOut with 3 second timeout');
+      // console.log('🔴 LOGOUT: Attempting Supabase signOut with 3 second timeout');
       
       // Crear promesa con timeout de 3 segundos
       const signOutPromise = supabase.auth.signOut();
@@ -265,10 +289,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
       
       const result = await Promise.race([signOutPromise, timeoutPromise]);
-      console.log('🔴 LOGOUT: Supabase signOut completed successfully');
+      // console.log('🔴 LOGOUT: Supabase signOut completed successfully');
       
     } catch (error: any) {
-      console.warn('🔴 LOGOUT: Supabase signOut failed or timed out:', error.message);
+      // console.warn('🔴 LOGOUT: Supabase signOut failed or timed out:', error.message);
     }
     
     // SIEMPRE limpiar el estado local, sin importar si Supabase funcionó
@@ -279,7 +303,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       description: "Has cerrado sesión exitosamente",
     });
     
-    console.log('🔴 LOGOUT: Logout process completed');
+    // console.log('🔴 LOGOUT: Logout process completed');
   };
 
   // Función para refrescar el perfil
@@ -287,6 +311,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (user) {
       const userProfile = await fetchProfile(user.id);
       setProfile(userProfile);
+      
+      // Si el perfil tiene workshop_id, cargar también el workshop
+      if (userProfile?.workshop_id) {
+        await refreshWorkshop();
+      }
+    }
+  };
+
+  // Función para refrescar el workshop
+  const refreshWorkshop = async (): Promise<void> => {
+    if (profile?.workshop_id) {
+      try {
+        const { data: workshopData, error } = await supabase
+          .from('workshops')
+          .select('*')
+          .eq('id', profile.workshop_id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching workshop:', error);
+          return;
+        }
+
+        setWorkshop(workshopData);
+      } catch (error) {
+        console.error('Error in refreshWorkshop:', error);
+      }
     }
   };
 
@@ -294,10 +345,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     session,
     user,
     profile,
+    workshop,
     loading,
     signIn,
     signOut,
     refreshProfile,
+    refreshWorkshop,
   };
 
   return (
