@@ -35,7 +35,7 @@ const Verification = () => {
       repuestos_total: "",
       mo_chapa_ut: "",
       mo_chapa_eur: "",
-      mo_pintura_ut: "", 
+      mo_pintura_ut: "",
       mo_pintura_eur: "",
       mat_pintura_eur: "",
       subtotal_neto: "",
@@ -115,7 +115,7 @@ const Verification = () => {
                repuestos_total: insuranceData.total_spare_parts_eur?.toString() || "",
                mo_chapa_ut: insuranceData.bodywork_labor_ut?.toString() || "",
                mo_chapa_eur: insuranceData.bodywork_labor_eur?.toString() || "",
-               mo_pintura_ut: insuranceData.painting_labor_ut?.toString() || "", 
+               mo_pintura_ut: insuranceData.painting_labor_ut?.toString() || "",
                mo_pintura_eur: insuranceData.painting_labor_eur?.toString() || "",
                mat_pintura_eur: insuranceData.paint_material_eur?.toString() || "",
                subtotal_neto: insuranceData.net_subtotal?.toString() || "",
@@ -759,9 +759,38 @@ const Verification = () => {
             </div>
 
             <div className="border-t pt-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="mb-4">
+                <Label htmlFor="subtotal_neto">Subtotal sin IVA</Label>
+                <div className="relative">
+                  <Input
+                    id="subtotal_neto"
+                    value={extractedData.totales.subtotal_neto}
+                    onChange={(e) => handleInputChange('totales', 'subtotal_neto', e.target.value)}
+                    readOnly={!isEditing}
+                    className={!isEditing ? "bg-muted/50 font-semibold" : "font-semibold"}
+                  />
+                  {!isEditing && (
+                    <div className="absolute right-3 top-2.5 text-sm font-semibold text-foreground">
+                      {formatCurrency(extractedData.totales.subtotal_neto)}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <Label htmlFor="iva">Monto IVA</Label>
+                  <Label htmlFor="iva_percentage">Porcentaje IVA (%)</Label>
+                  <Input
+                    id="iva_percentage"
+                    value={extractedData.totales.iva_percentage}
+                    onChange={(e) => handleInputChange('totales', 'iva_percentage', e.target.value)}
+                    readOnly={!isEditing}
+                    className={!isEditing ? "bg-muted/50" : ""}
+                    placeholder="21"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="iva">Monto IVA (€)</Label>
                   <div className="relative">
                     <Input
                       id="iva"
@@ -777,59 +806,23 @@ const Verification = () => {
                     )}
                   </div>
                 </div>
-                <div>
-                  <Label htmlFor="iva_percentage">Porcentaje IVA</Label>
-                  <div className="relative">
-                    <Input
-                      id="iva_percentage"
-                      value={extractedData.totales.iva_percentage}
-                      onChange={(e) => handleInputChange('totales', 'iva_percentage', e.target.value)}
-                      readOnly={!isEditing}
-                      className={!isEditing ? "bg-muted/50" : ""}
-                    />
-                    {!isEditing && (
-                      <div className="absolute right-3 top-2.5 text-sm text-muted-foreground">
-                        {extractedData.totales.iva_percentage}%
-                      </div>
-                    )}
-                  </div>
-                </div>
               </div>
-              
-              <div className="grid grid-cols-2 gap-4 mt-4">
-                <div>
-                  <Label htmlFor="subtotal_neto">Subtotal sin IVA</Label>
-                  <div className="relative">
-                    <Input
-                      id="subtotal_neto"
-                      value={extractedData.totales.subtotal_neto}
-                      onChange={(e) => handleInputChange('totales', 'subtotal_neto', e.target.value)}
-                      readOnly={!isEditing}
-                      className={!isEditing ? "bg-muted/50 font-semibold" : "font-semibold"}
-                    />
-                    {!isEditing && (
-                      <div className="absolute right-3 top-2.5 text-sm font-semibold text-foreground">
-                        {formatCurrency(extractedData.totales.subtotal_neto)}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div>
-                  <Label htmlFor="total_con_iva">Total con IVA</Label>
-                  <div className="relative">
-                    <Input
-                      id="total_con_iva"
-                      value={extractedData.totales.total_con_iva}
-                      onChange={(e) => handleInputChange('totales', 'total_con_iva', e.target.value)}
-                      readOnly={!isEditing}
-                      className={!isEditing ? "bg-muted/50 font-semibold" : "font-semibold"}
-                    />
-                    {!isEditing && (
-                      <div className="absolute right-3 top-2.5 text-sm font-semibold text-foreground">
-                        {formatCurrency(extractedData.totales.total_con_iva)}
-                      </div>
-                    )}
-                  </div>
+
+              <div>
+                <Label htmlFor="total_con_iva">Total con IVA</Label>
+                <div className="relative">
+                  <Input
+                    id="total_con_iva"
+                    value={extractedData.totales.total_con_iva}
+                    onChange={(e) => handleInputChange('totales', 'total_con_iva', e.target.value)}
+                    readOnly={!isEditing}
+                    className={!isEditing ? "bg-muted/50 font-semibold" : "font-semibold"}
+                  />
+                  {!isEditing && (
+                    <div className="absolute right-3 top-2.5 text-sm font-semibold text-foreground">
+                      {formatCurrency(extractedData.totales.total_con_iva)}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

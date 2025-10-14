@@ -86,6 +86,7 @@ export type Database = {
           created_at: string | null
           id: string
           iva_amount: number | null
+          iva_percentage: number | null
           net_subtotal: number | null
           paint_material_eur: number | null
           painting_labor_eur: number | null
@@ -101,6 +102,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           iva_amount?: number | null
+          iva_percentage?: number | null
           net_subtotal?: number | null
           paint_material_eur?: number | null
           painting_labor_eur?: number | null
@@ -116,6 +118,7 @@ export type Database = {
           created_at?: string | null
           id?: string
           iva_amount?: number | null
+          iva_percentage?: number | null
           net_subtotal?: number | null
           paint_material_eur?: number | null
           painting_labor_eur?: number | null
