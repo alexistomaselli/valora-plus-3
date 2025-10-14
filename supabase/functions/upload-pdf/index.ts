@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
 
     console.log(`Processing file: ${file.name}, size: ${file.size}`)
 
-    const webhookUrl = 'https://n8n.necode.io/webhook/23154e6f-420b-4186-be36-8b7585da797a'
+    const webhookUrl = 'https://bot-bitrix-n8n.uhcoic.easypanel.host/webhook/23154e6f-420b-4186-be36-8b7585da797a'
 
     const webhookFormData = new FormData()
     webhookFormData.append('file', file)
