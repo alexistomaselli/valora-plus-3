@@ -4,12 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileText, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 const NewAnalysis = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
+  const { session } = useAuth();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -66,14 +68,17 @@ const NewAnalysis = () => {
     setIsUploading(true);
     
     try {
+      // Check if user is authenticated
+      if (!session?.access_token) {
+        throw new Error('Usuario no autenticado');
+      }
+
       const formData = new FormData();
       formData.append('file', file);
       
-      const response = await fetch('https://vhgdwravbfkzphhbppma.supabase.co/functions/v1/upload-pdf', {
+      // Usar Edge Function simplificada como proxy
+      const response = await fetch('https://piynzvpnurnvbrmkyneo.supabase.co/functions/v1/upload-pdf', {
         method: 'POST',
-        headers: {
-          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZoZ2R3cmF2YmZrenBoaGJwcG1hIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzk3Mjc3OTEsImV4cCI6MjA1NTMwMzc5MX0.WCfnYJS-dHYk7oAl0ALPzfv3owTvx5CTFnYgHGs5u4k',
-        },
         body: formData,
       });
       
@@ -82,24 +87,18 @@ const NewAnalysis = () => {
       }
       
       const result = await response.json();
-      console.log('Webhook response:', result);
-      
-      // Store the complete webhook response data for verification step
-      sessionStorage.setItem('webhookResponseData', JSON.stringify(result));
+      console.log('Datos del análisis:', result);
       
       setIsUploading(false);
       
       toast({
-        title: "PDF subido correctamente",
-        description: "Datos extraídos y procesados.",
+        title: "PDF subido exitosamente",
+        description: "El análisis se está procesando automáticamente.",
       });
       
-      // Extract caseId from response or generate one
-      const caseId = result.caseId || result.id || `case-${Date.now()}`;
-      
-      // Redirect to verification step with the case ID
+      // Usar el ID del análisis devuelto por la Edge Function
       setTimeout(() => {
-        window.location.href = `/app/verificacion/${caseId}`;
+        window.location.href = `/app/verificacion/${result.analysisId}`;
       }, 1500);
       
     } catch (error) {

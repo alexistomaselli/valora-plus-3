@@ -1,5 +1,6 @@
 -- Migración para corregir inconsistencias de datos y asegurar roles correctos
 -- Fecha: 2024-10-13
+-- Versión compatible con Supabase Cloud
 
 -- 1. Primero, corregir el perfil del admin (eliminar workshop_name que ya no existe)
 UPDATE public.profiles 
@@ -23,7 +24,8 @@ INSERT INTO public.workshops (id, name, email, phone, address) VALUES
     'Avenida Industrial 45, Barcelona'
 ) ON CONFLICT (id) DO NOTHING;
 
--- 3. Crear usuarios admin_mechanic para los workshops
+-- 3. Crear perfiles para usuarios admin_mechanic de los workshops
+-- Nota: Los usuarios reales deben crearse desde el dashboard de Supabase
 DO $$
 DECLARE
     workshop_demo_id uuid := '550e8400-e29b-41d4-a716-446655440000';
@@ -31,37 +33,44 @@ DECLARE
     user_demo_id uuid;
     user_auto_id uuid;
 BEGIN
-    -- Crear usuario para Taller Mecánico Demo
-    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'demo@tallerdemo.com') THEN
-        INSERT INTO auth.users (
-            id, 
-            instance_id,
-            email, 
-            encrypted_password, 
-            email_confirmed_at, 
-            created_at, 
-            updated_at, 
-            raw_app_meta_data, 
-            raw_user_meta_data,
-            aud,
-            role
-        ) VALUES (
-            gen_random_uuid(),
-            '00000000-0000-0000-0000-000000000000',
-            'demo@tallerdemo.com',
-            crypt('Demo123!', gen_salt('bf')),
-            now(),
-            now(),
-            now(),
-            '{"provider":"email","providers":["email"]}',
-            '{"workshop_name":"Taller Mecánico Demo"}',
-            'authenticated',
-            'authenticated'
-        );
-    END IF;
-
-    -- Obtener ID del usuario demo
+    -- Intentar obtener o crear ID para usuario demo
     SELECT id INTO user_demo_id FROM auth.users WHERE email = 'demo@tallerdemo.com';
+    
+    IF user_demo_id IS NULL THEN
+        user_demo_id := gen_random_uuid();
+        
+        -- Intentar crear usuario demo (puede fallar en Cloud)
+        BEGIN
+            INSERT INTO auth.users (
+                id, 
+                instance_id,
+                email, 
+                encrypted_password, 
+                email_confirmed_at, 
+                created_at, 
+                updated_at, 
+                raw_app_meta_data, 
+                raw_user_meta_data,
+                aud,
+                role
+            ) VALUES (
+                user_demo_id,
+                '00000000-0000-0000-0000-000000000000',
+                'demo@tallerdemo.com',
+                '$2a$10$dummy.hash.for.development.only',  -- Hash dummy
+                now(),
+                now(),
+                now(),
+                '{"provider":"email","providers":["email"]}',
+                '{"workshop_name":"Taller Mecánico Demo"}',
+                'authenticated',
+                'authenticated'
+            );
+        EXCEPTION WHEN OTHERS THEN
+            -- Si falla, continuamos sin crear el usuario en auth.users
+            NULL;
+        END;
+    END IF;
 
     -- Crear perfil para usuario demo
     INSERT INTO public.profiles (id, email, role, full_name, workshop_id, phone)
@@ -78,37 +87,44 @@ BEGIN
         full_name = 'Juan Pérez',
         phone = '612 345 678';
 
-    -- Crear usuario para AutoReparaciones SL
-    IF NOT EXISTS (SELECT 1 FROM auth.users WHERE email = 'info@autoreparaciones.com') THEN
-        INSERT INTO auth.users (
-            id, 
-            instance_id,
-            email, 
-            encrypted_password, 
-            email_confirmed_at, 
-            created_at, 
-            updated_at, 
-            raw_app_meta_data, 
-            raw_user_meta_data,
-            aud,
-            role
-        ) VALUES (
-            gen_random_uuid(),
-            '00000000-0000-0000-0000-000000000000',
-            'info@autoreparaciones.com',
-            crypt('Auto123!', gen_salt('bf')),
-            now(),
-            now(),
-            now(),
-            '{"provider":"email","providers":["email"]}',
-            '{"workshop_name":"AutoReparaciones SL"}',
-            'authenticated',
-            'authenticated'
-        );
-    END IF;
-
-    -- Obtener ID del usuario auto
+    -- Intentar obtener o crear ID para usuario auto
     SELECT id INTO user_auto_id FROM auth.users WHERE email = 'info@autoreparaciones.com';
+    
+    IF user_auto_id IS NULL THEN
+        user_auto_id := gen_random_uuid();
+        
+        -- Intentar crear usuario auto (puede fallar en Cloud)
+        BEGIN
+            INSERT INTO auth.users (
+                id, 
+                instance_id,
+                email, 
+                encrypted_password, 
+                email_confirmed_at, 
+                created_at, 
+                updated_at, 
+                raw_app_meta_data, 
+                raw_user_meta_data,
+                aud,
+                role
+            ) VALUES (
+                user_auto_id,
+                '00000000-0000-0000-0000-000000000000',
+                'info@autoreparaciones.com',
+                '$2a$10$dummy.hash.for.development.only',  -- Hash dummy
+                now(),
+                now(),
+                now(),
+                '{"provider":"email","providers":["email"]}',
+                '{"workshop_name":"AutoReparaciones SL"}',
+                'authenticated',
+                'authenticated'
+            );
+        EXCEPTION WHEN OTHERS THEN
+            -- Si falla, continuamos sin crear el usuario en auth.users
+            NULL;
+        END;
+    END IF;
 
     -- Crear perfil para usuario auto
     INSERT INTO public.profiles (id, email, role, full_name, workshop_id, phone)

@@ -7,64 +7,160 @@ export type Json =
   | Json[]
 
 export type Database = {
-  // Allows to automatically instantiate createClient with right options
-  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
-  __InternalSupabase: {
-    PostgrestVersion: "12.2.12 (cd3cf9e)"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
-      documents: {
+      analysis: {
         Row: {
-          content: string | null
-          embedding: string | null
-          id: number
-          metadata: Json | null
+          analysis_month: string
+          created_at: string | null
+          id: string
+          pdf_filename: string | null
+          pdf_url: string | null
+          status: string
+          updated_at: string | null
+          workshop_id: string
         }
         Insert: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
+          analysis_month?: string
+          created_at?: string | null
+          id?: string
+          pdf_filename?: string | null
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string | null
+          workshop_id: string
         }
         Update: {
-          content?: string | null
-          embedding?: string | null
-          id?: number
-          metadata?: Json | null
+          analysis_month?: string
+          created_at?: string | null
+          id?: string
+          pdf_filename?: string | null
+          pdf_url?: string | null
+          status?: string
+          updated_at?: string | null
+          workshop_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "analysis_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      insurance_amounts: {
+        Row: {
+          analysis_id: string
+          bodywork_labor_eur: number | null
+          bodywork_labor_ut: number | null
+          created_at: string | null
+          id: string
+          iva_amount: number | null
+          net_subtotal: number | null
+          paint_material_eur: number | null
+          painting_labor_eur: number | null
+          painting_labor_ut: number | null
+          total_spare_parts_eur: number | null
+          total_with_iva: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          analysis_id: string
+          bodywork_labor_eur?: number | null
+          bodywork_labor_ut?: number | null
+          created_at?: string | null
+          id?: string
+          iva_amount?: number | null
+          net_subtotal?: number | null
+          paint_material_eur?: number | null
+          painting_labor_eur?: number | null
+          painting_labor_ut?: number | null
+          total_spare_parts_eur?: number | null
+          total_with_iva?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          analysis_id?: string
+          bodywork_labor_eur?: number | null
+          bodywork_labor_ut?: number | null
+          created_at?: string | null
+          id?: string
+          iva_amount?: number | null
+          net_subtotal?: number | null
+          paint_material_eur?: number | null
+          painting_labor_eur?: number | null
+          painting_labor_ut?: number | null
+          total_spare_parts_eur?: number | null
+          total_with_iva?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insurance_amounts_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analysis"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
-          id: string
-          email: string
-          role: 'admin' | 'admin_mechanic'
-          full_name: string | null
-          workshop_id: string | null
-          phone: string | null
           created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          phone: string | null
+          role: string
           updated_at: string
+          workshop_id: string | null
         }
         Insert: {
-          id: string
-          email: string
-          role: 'admin' | 'admin_mechanic'
-          full_name?: string | null
-          workshop_id?: string | null
-          phone?: string | null
           created_at?: string
+          email: string
+          full_name?: string | null
+          id: string
+          phone?: string | null
+          role: string
           updated_at?: string
+          workshop_id?: string | null
         }
         Update: {
-          id?: string
-          email?: string
-          role?: 'admin' | 'admin_mechanic'
-          full_name?: string | null
-          workshop_id?: string | null
-          phone?: string | null
           created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          phone?: string | null
+          role?: string
           updated_at?: string
+          workshop_id?: string | null
         }
         Relationships: [
           {
@@ -73,126 +169,142 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "workshops"
             referencedColumns: ["id"]
-          }
+          },
+        ]
+      }
+      vehicle_data: {
+        Row: {
+          analysis_id: string
+          created_at: string | null
+          hourly_price: number | null
+          id: string
+          internal_reference: string | null
+          license_plate: string | null
+          manufacturer: string | null
+          model: string | null
+          system: string | null
+          updated_at: string | null
+          vin: string | null
+        }
+        Insert: {
+          analysis_id: string
+          created_at?: string | null
+          hourly_price?: number | null
+          id?: string
+          internal_reference?: string | null
+          license_plate?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          system?: string | null
+          updated_at?: string | null
+          vin?: string | null
+        }
+        Update: {
+          analysis_id?: string
+          created_at?: string | null
+          hourly_price?: number | null
+          id?: string
+          internal_reference?: string | null
+          license_plate?: string | null
+          manufacturer?: string | null
+          model?: string | null
+          system?: string | null
+          updated_at?: string | null
+          vin?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehicle_data_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analysis"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workshop_costs: {
+        Row: {
+          analysis_id: string
+          bodywork_actual_hours: number | null
+          bodywork_hourly_cost: number | null
+          created_at: string | null
+          id: string
+          notes: string | null
+          other_costs: number | null
+          painting_actual_hours: number | null
+          painting_consumables_cost: number | null
+          painting_hourly_cost: number | null
+          spare_parts_purchase_cost: number | null
+          subcontractor_costs: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          analysis_id: string
+          bodywork_actual_hours?: number | null
+          bodywork_hourly_cost?: number | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          other_costs?: number | null
+          painting_actual_hours?: number | null
+          painting_consumables_cost?: number | null
+          painting_hourly_cost?: number | null
+          spare_parts_purchase_cost?: number | null
+          subcontractor_costs?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          analysis_id?: string
+          bodywork_actual_hours?: number | null
+          bodywork_hourly_cost?: number | null
+          created_at?: string | null
+          id?: string
+          notes?: string | null
+          other_costs?: number | null
+          painting_actual_hours?: number | null
+          painting_consumables_cost?: number | null
+          painting_hourly_cost?: number | null
+          spare_parts_purchase_cost?: number | null
+          subcontractor_costs?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workshop_costs_analysis_id_fkey"
+            columns: ["analysis_id"]
+            isOneToOne: false
+            referencedRelation: "analysis"
+            referencedColumns: ["id"]
+          },
         ]
       }
       workshops: {
         Row: {
-          id: string
-          name: string
-          email: string
-          phone: string | null
           address: string | null
           created_at: string
+          email: string | null
+          id: string
+          name: string
+          phone: string | null
           updated_at: string
         }
         Insert: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
           id?: string
           name: string
-          email: string
           phone?: string | null
-          address?: string | null
-          created_at?: string
           updated_at?: string
         }
         Update: {
+          address?: string | null
+          created_at?: string
+          email?: string | null
           id?: string
           name?: string
-          email?: string
           phone?: string | null
-          address?: string | null
-          created_at?: string
           updated_at?: string
-        }
-        Relationships: []
-      }
-      n8n_chat_histories: {
-        Row: {
-          id: number
-          message: Json
-          session_id: string
-        }
-        Insert: {
-          id?: number
-          message: Json
-          session_id: string
-        }
-        Update: {
-          id?: number
-          message?: Json
-          session_id?: string
-        }
-        Relationships: []
-      }
-      n8n_chat_histories_demo_concesionario: {
-        Row: {
-          id: number
-          message: Json
-          session_id: string
-        }
-        Insert: {
-          id?: number
-          message: Json
-          session_id: string
-        }
-        Update: {
-          id?: number
-          message?: Json
-          session_id?: string
-        }
-        Relationships: []
-      }
-      n8n_chat_histories_demo_inmobiliaria: {
-        Row: {
-          id: number
-          message: Json
-          session_id: string
-        }
-        Insert: {
-          id?: number
-          message: Json
-          session_id: string
-        }
-        Update: {
-          id?: number
-          message?: Json
-          session_id?: string
-        }
-        Relationships: []
-      }
-      n8n_chat_histories_dental_deposito: {
-        Row: {
-          id: number
-          message: Json
-          session_id: string
-        }
-        Insert: {
-          id?: number
-          message: Json
-          session_id: string
-        }
-        Update: {
-          id?: number
-          message?: Json
-          session_id?: string
-        }
-        Relationships: []
-      }
-      n8n_chat_histories_experto_nutricion: {
-        Row: {
-          id: number
-          message: Json
-          session_id: string
-        }
-        Insert: {
-          id?: number
-          message: Json
-          session_id: string
-        }
-        Update: {
-          id?: number
-          message?: Json
-          session_id?: string
         }
         Relationships: []
       }
@@ -201,106 +313,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      binary_quantize: {
-        Args: { "": string } | { "": unknown }
-        Returns: unknown
+      complete_user_registration: {
+        Args: { user_id: string; user_phone?: string; workshop_id: string }
+        Returns: undefined
       }
-      halfvec_avg: {
-        Args: { "": number[] }
-        Returns: unknown
-      }
-      halfvec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: { "": unknown }
+      handle_workshop_registration: {
+        Args: {
+          workshop_email: string
+          workshop_name: string
+          workshop_phone?: string
+        }
         Returns: string
       }
-      halfvec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      hnsw_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_bit_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      l2_norm: {
-        Args: { "": unknown } | { "": unknown }
-        Returns: number
-      }
-      l2_normalize: {
-        Args: { "": string } | { "": unknown } | { "": unknown }
-        Returns: unknown
-      }
-      match_documents: {
-        Args: { filter?: Json; match_count?: number; query_embedding: string }
-        Returns: {
-          content: string
-          id: number
-          metadata: Json
-          similarity: number
-        }[]
-      }
-      sparsevec_out: {
-        Args: { "": unknown }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: { "": unknown }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
-      }
-      vector_avg: {
-        Args: { "": number[] }
-        Returns: string
-      }
-      vector_dims: {
-        Args: { "": string } | { "": unknown }
-        Returns: number
-      }
-      vector_norm: {
-        Args: { "": string }
-        Returns: number
-      }
-      vector_out: {
-        Args: { "": string }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: { "": string }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: { "": unknown[] }
-        Returns: number
+      is_admin_user: {
+        Args: Record<PropertyKey, never>
+        Returns: boolean
       }
     }
     Enums: {
@@ -430,7 +457,11 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },
 } as const
+

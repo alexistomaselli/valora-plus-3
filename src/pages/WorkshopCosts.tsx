@@ -1,15 +1,20 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, ArrowLeft, Calculator, AlertCircle, DollarSign } from "lucide-react";
+import { ArrowRight, ArrowLeft, Calculator, AlertCircle, DollarSign, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const WorkshopCosts = () => {
+  const { caseId } = useParams<{ caseId: string }>();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   const [costs, setCosts] = useState({
     repuestos_compra: "",
@@ -56,7 +61,7 @@ const WorkshopCosts = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
     if (!validateForm()) {
       toast({
         title: "Errores en el formulario",
@@ -66,15 +71,58 @@ const WorkshopCosts = () => {
       return;
     }
 
-    toast({
-      title: "Calculando rentabilidad...",
-      description: "Procesando los datos para generar el análisis.",
-    });
+    if (!caseId) {
+      toast({
+        title: "Error",
+        description: "No se encontró el ID del análisis.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-    // Simulate calculation
-    setTimeout(() => {
-      window.location.href = '/app/resultados/demo-case-id';
-    }, 1500);
+    setIsSaving(true);
+
+    try {
+      // Save workshop costs to database
+      const { error } = await supabase
+        .from('workshop_costs')
+        .upsert({
+          analysis_id: caseId,
+          spare_parts_purchase_cost: parseFloat(costs.repuestos_compra) || 0,
+          bodywork_actual_hours: parseFloat(costs.mo_chapa_horas_reales) || 0,
+          bodywork_hourly_cost: parseFloat(costs.mo_chapa_coste_hora) || 0,
+          painting_actual_hours: parseFloat(costs.mo_pintura_horas_reales) || 0,
+          painting_hourly_cost: parseFloat(costs.mo_pintura_coste_hora) || 0,
+          painting_consumables_cost: parseFloat(costs.consumibles_pintura) || 0,
+          subcontractor_costs: parseFloat(costs.subcontratas) || 0,
+          other_costs: parseFloat(costs.otros_costes) || 0,
+          notes: costs.notas
+        });
+
+      if (error) {
+        throw error;
+      }
+
+      toast({
+        title: "Datos guardados",
+        description: "Calculando rentabilidad...",
+      });
+
+      // Redirect to results page
+      setTimeout(() => {
+        window.location.href = `/app/resultados/${caseId}`;
+      }, 1500);
+
+    } catch (error) {
+      console.error('Error saving workshop costs:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron guardar los datos. Inténtalo de nuevo.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const formatCurrency = (value: string) => {
@@ -370,10 +418,19 @@ const WorkshopCosts = () => {
                 <Button 
                   onClick={handleCalculate}
                   className="w-full bg-gradient-primary text-primary-foreground shadow-glow"
-                  disabled={calculateTotal() === 0}
+                  disabled={calculateTotal() === 0 || isSaving}
                 >
-                  Calcular Rentabilidad
-                  <ArrowRight className="ml-2 h-4 w-4" />
+                  {isSaving ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Guardando datos...
+                    </>
+                  ) : (
+                    <>
+                      Calcular Rentabilidad
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </>
+                  )}
                 </Button>
               </div>
             </CardContent>

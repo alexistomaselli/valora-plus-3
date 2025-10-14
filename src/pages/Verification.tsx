@@ -1,83 +1,141 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { AlertTriangle, CheckCircle2, ArrowRight, ArrowLeft, Edit3 } from "lucide-react";
+import { AlertTriangle, CheckCircle2, ArrowRight, ArrowLeft, Edit3, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const Verification = () => {
+  const { caseId } = useParams<{ caseId: string }>();
   const [isEditing, setIsEditing] = useState(false);
   const [confidence, setConfidence] = useState(0.92);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Get extracted data from webhook response stored in sessionStorage
-  const [extractedData, setExtractedData] = useState(() => {
-    const storedData = sessionStorage.getItem('webhookResponseData');
-    if (storedData) {
-      try {
-        const parsedData = JSON.parse(storedData);
-        // Update confidence based on webhook response if available
-        if (parsedData.confidence) {
-          setConfidence(parsedData.confidence);
-        }
-        
-        // Return webhook data structure or fallback to mock data
-        return parsedData.extractedData || {
-          metadata: {
-            matricula: parsedData.matricula || "5654LGR",
-            bastidor: parsedData.bastidor || "SAJBB4BN8LCY87550", 
-            fabricante: parsedData.fabricante || "JAGUAR",
-            modelo: parsedData.modelo || "XF (X250)",
-            fecha: parsedData.fecha || "2024-08-14",
-            referencia: parsedData.referencia || "161832151335",
-            sistema: parsedData.sistema || "AUDATEX",
-            precio_hora: parsedData.precio_hora || "59.00"
-          },
-          totales: {
-            repuestos_total: parsedData.repuestos_total || "942.16",
-            mo_chapa_ut: parsedData.mo_chapa_ut || "285.0",
-            mo_chapa_eur: parsedData.mo_chapa_eur || "1681.50",
-            mo_pintura_ut: parsedData.mo_pintura_ut || "130.5", 
-            mo_pintura_eur: parsedData.mo_pintura_eur || "769.95",
-            mat_pintura_eur: parsedData.mat_pintura_eur || "1251.10",
-            subtotal_neto: parsedData.subtotal_neto || "4644.71",
-            iva: parsedData.iva || "975.39",
-            total_con_iva: parsedData.total_con_iva || "5620.10"
-          }
-        };
-      } catch (error) {
-        console.error('Error parsing webhook data:', error);
-      }
+  // Initialize with empty data structure
+  const [extractedData, setExtractedData] = useState({
+    metadata: {
+      matricula: "",
+      bastidor: "", 
+      fabricante: "",
+      modelo: "",
+      fecha: "",
+      referencia: "",
+      sistema: "",
+      precio_hora: ""
+    },
+    totales: {
+      repuestos_total: "",
+      mo_chapa_ut: "",
+      mo_chapa_eur: "",
+      mo_pintura_ut: "", 
+      mo_pintura_eur: "",
+      mat_pintura_eur: "",
+      subtotal_neto: "",
+      iva: "",
+      total_con_iva: ""
     }
-    
-    // Fallback to mock data if no webhook data available
-    return {
-      metadata: {
-        matricula: "5654LGR",
-        bastidor: "SAJBB4BN8LCY87550", 
-        fabricante: "JAGUAR",
-        modelo: "XF (X250)",
-        fecha: "2024-08-14",
-        referencia: "161832151335",
-        sistema: "AUDATEX",
-        precio_hora: "59.00"
-      },
-      totales: {
-        repuestos_total: "942.16",
-        mo_chapa_ut: "285.0",
-        mo_chapa_eur: "1681.50",
-        mo_pintura_ut: "130.5", 
-        mo_pintura_eur: "769.95",
-        mat_pintura_eur: "1251.10",
-        subtotal_neto: "4644.71",
-        iva: "975.39",
-        total_con_iva: "5620.10"
+  });
+
+  // Load analysis data from database
+  useEffect(() => {
+    const loadAnalysisData = async () => {
+      if (!caseId) {
+        setError('No se proporcionó ID de análisis');
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Get analysis data
+        const { data: analysis, error: analysisError } = await supabase
+          .from('analysis')
+          .select('*')
+          .eq('id', caseId)
+          .single();
+
+        if (analysisError) {
+          throw new Error(`Error cargando análisis: ${analysisError.message}`);
+        }
+
+        if (!analysis) {
+          throw new Error('Análisis no encontrado');
+        }
+
+        // Get vehicle data
+        const { data: vehicleData, error: vehicleError } = await supabase
+          .from('vehicle_data')
+          .select('*')
+          .eq('analysis_id', caseId)
+          .single();
+
+        // Get insurance amounts
+        const { data: insuranceData, error: insuranceError } = await supabase
+          .from('insurance_amounts')
+          .select('*')
+          .eq('analysis_id', caseId)
+          .single();
+
+        // If analysis is still processing, show loading state
+        if (analysis.status === 'processing') {
+          setError('El análisis aún se está procesando. Por favor, espera unos momentos.');
+          setIsLoading(false);
+          return;
+        }
+
+        // If analysis failed, show error
+        if (analysis.status === 'failed') {
+          setError('El análisis falló durante el procesamiento.');
+          setIsLoading(false);
+          return;
+        }
+
+        // Set extracted data from database
+         if (vehicleData && insuranceData) {
+           setExtractedData({
+             metadata: {
+               matricula: vehicleData.license_plate || "",
+               bastidor: vehicleData.vin || "", 
+               fabricante: vehicleData.manufacturer || "",
+               modelo: vehicleData.model || "",
+               fecha: "", // This field doesn't exist in vehicle_data table
+               referencia: vehicleData.internal_reference || "",
+               sistema: vehicleData.system || "",
+               precio_hora: vehicleData.hourly_price?.toString() || ""
+             },
+             totales: {
+               repuestos_total: insuranceData.total_spare_parts_eur?.toString() || "",
+               mo_chapa_ut: insuranceData.bodywork_labor_ut?.toString() || "",
+               mo_chapa_eur: insuranceData.bodywork_labor_eur?.toString() || "",
+               mo_pintura_ut: insuranceData.painting_labor_ut?.toString() || "", 
+               mo_pintura_eur: insuranceData.painting_labor_eur?.toString() || "",
+               mat_pintura_eur: insuranceData.paint_material_eur?.toString() || "",
+               subtotal_neto: insuranceData.net_subtotal?.toString() || "",
+               iva: insuranceData.iva_amount?.toString() || "",
+               total_con_iva: insuranceData.total_with_iva?.toString() || ""
+             }
+           });
+        } else {
+          // If no extracted data yet, show message
+          setError('Los datos aún no han sido extraídos. El análisis puede estar en proceso.');
+        }
+
+      } catch (err) {
+        console.error('Error loading analysis data:', err);
+        setError(err instanceof Error ? err.message : 'Error cargando datos del análisis');
+      } finally {
+        setIsLoading(false);
       }
     };
-  });
+
+    loadAnalysisData();
+  }, [caseId]);
 
   const handleInputChange = (section: string, field: string, value: string) => {
     setExtractedData(prev => ({
@@ -94,9 +152,9 @@ const Verification = () => {
       title: "Datos verificados",
       description: "Continuando al siguiente paso...",
     });
-    // Redirect to costs input
+    // Redirect to costs input with the actual analysis ID
     setTimeout(() => {
-      window.location.href = '/app/costes/demo-case-id';
+      window.location.href = `/app/costes/${caseId}`;
     }, 1000);
   };
 
@@ -107,6 +165,43 @@ const Verification = () => {
       maximumFractionDigits: 2 
     }) + ' €';
   };
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4" />
+            <p className="text-lg text-muted-foreground">Cargando datos del análisis...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state
+  if (error) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Card className="w-full max-w-md">
+            <CardContent className="p-6 text-center">
+              <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-4" />
+              <h2 className="text-xl font-semibold mb-2">Error</h2>
+              <p className="text-muted-foreground mb-4">{error}</p>
+              <Link to="/app/nuevo">
+                <Button>
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Volver al inicio
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">

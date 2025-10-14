@@ -133,7 +133,9 @@ const Register = () => {
         password,
         options: {
            data: {
-             workshop_name: tallerName
+             workshop_name: tallerName,
+             role: 'admin_mechanic',
+             full_name: fullName
            }
          }
       });

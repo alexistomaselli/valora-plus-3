@@ -1,35 +1,171 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Mail, ArrowLeft, TrendingUp, TrendingDown, Minus, FileText, Share2 } from "lucide-react";
+import { Download, Mail, ArrowLeft, TrendingUp, TrendingDown, Minus, FileText, Share2, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
+
+interface MargenDetallado {
+  ingresos: number;
+  costes: number;
+  margen: number;
+}
+
+interface ResultsData {
+  case_id: string;
+  metadata: {
+    matricula: string;
+    referencia: string;
+    fecha: string;
+    taller: string;
+  };
+  ingresos_totales: number;
+  costes_totales: number;
+  margen_eur: number;
+  margen_pct: number;
+  margen_detallado: {
+    repuestos: MargenDetallado;
+    mo_chapa: MargenDetallado;
+    mo_pintura: MargenDetallado;
+    mat_pintura: MargenDetallado;
+  };
+}
 
 const Results = () => {
+  const { caseId } = useParams<{ caseId: string }>();
   const [isDownloading, setIsDownloading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [results, setResults] = useState<ResultsData | null>(null);
   const { toast } = useToast();
 
-  // Mock calculation results based on the Excel example
-  const results = {
-    case_id: "demo-case-id",
-    metadata: {
-      matricula: "5654LGR",
-      referencia: "161832151335",
-      fecha: "2024-08-14",
-      taller: "Taller Demo SL"
-    },
-    ingresos_totales: 4644.71,
-    costes_totales: 2584.00,
-    margen_eur: 2060.71,
-    margen_pct: 44.37,
-    margen_detallado: {
-      repuestos: { ingresos: 942.16, costes: 750.00, margen: 192.16 },
-      mo_chapa: { ingresos: 1681.50, costes: 704.00, margen: 977.50 },
-      mo_pintura: { ingresos: 769.95, costes: 280.00, margen: 489.95 },
-      mat_pintura: { ingresos: 1251.10, costes: 400.00, margen: 851.10 }
-    }
+  useEffect(() => {
+    const loadAnalysisData = async () => {
+      if (!caseId) {
+        setError("No se encontró el ID del análisis");
+        setIsLoading(false);
+        return;
+      }
+
+      try {
+        // Load analysis data
+        const { data: analysis, error: analysisError } = await supabase
+          .from('analysis')
+          .select('*')
+          .eq('id', caseId)
+          .single();
+
+        if (analysisError) throw analysisError;
+
+        // Load vehicle data
+        const { data: vehicleData, error: vehicleError } = await supabase
+          .from('vehicle_data')
+          .select('*')
+          .eq('analysis_id', caseId)
+          .single();
+
+        if (vehicleError) throw vehicleError;
+
+        // Load insurance amounts
+        const { data: insuranceAmounts, error: insuranceError } = await supabase
+          .from('insurance_amounts')
+          .select('*')
+          .eq('analysis_id', caseId)
+          .single();
+
+        if (insuranceError) throw insuranceError;
+
+        // Load workshop costs
+        const { data: workshopCosts, error: workshopError } = await supabase
+          .from('workshop_costs')
+          .select('*')
+          .eq('analysis_id', caseId)
+          .single();
+
+        if (workshopError) throw workshopError;
+
+        // Calculate results
+        const calculatedResults = calculateProfitability(
+          analysis,
+          vehicleData,
+          insuranceAmounts,
+          workshopCosts
+        );
+
+        setResults(calculatedResults);
+      } catch (error) {
+        console.error('Error loading analysis data:', error);
+        setError('Error al cargar los datos del análisis');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadAnalysisData();
+  }, [caseId]);
+
+  const calculateProfitability = (analysis: any, vehicleData: any, insuranceAmounts: any, workshopCosts: any): ResultsData => {
+    // Calculate total income (from insurance)
+    const ingresos_totales = insuranceAmounts.total_with_iva || 0;
+
+    // Calculate total costs (from workshop)
+    const costes_repuestos = workshopCosts.spare_parts_purchase_cost || 0;
+    const costes_mo_chapa = (workshopCosts.bodywork_actual_hours || 0) * (workshopCosts.bodywork_hourly_cost || 0);
+    const costes_mo_pintura = (workshopCosts.painting_actual_hours || 0) * (workshopCosts.painting_hourly_cost || 0);
+    const costes_mat_pintura = workshopCosts.painting_consumables_cost || 0;
+    const costes_otros = (workshopCosts.subcontractor_costs || 0) + (workshopCosts.other_costs || 0);
+
+    const costes_totales = costes_repuestos + costes_mo_chapa + costes_mo_pintura + costes_mat_pintura + costes_otros;
+
+    // Calculate margins
+    const margen_eur = ingresos_totales - costes_totales;
+    const margen_pct = ingresos_totales > 0 ? (margen_eur / ingresos_totales) * 100 : 0;
+
+    // Calculate detailed margins (approximate distribution from insurance amounts)
+    const ingresos_repuestos = insuranceAmounts.total_spare_parts_eur || 0;
+    const ingresos_mo_chapa = insuranceAmounts.bodywork_labor_eur || 0;
+    const ingresos_mo_pintura = insuranceAmounts.painting_labor_eur || 0;
+    const ingresos_mat_pintura = insuranceAmounts.paint_material_eur || 0;
+
+    return {
+      case_id: caseId,
+      metadata: {
+        matricula: vehicleData.license_plate || 'N/A',
+        referencia: analysis.reference_number || 'N/A',
+        fecha: analysis.created_at ? new Date(analysis.created_at).toLocaleDateString('es-ES') : 'N/A',
+        taller: 'Taller' // TODO: Get from workshop data
+      },
+      ingresos_totales,
+      costes_totales,
+      margen_eur,
+      margen_pct,
+      margen_detallado: {
+        repuestos: { 
+          ingresos: ingresos_repuestos, 
+          costes: costes_repuestos, 
+          margen: ingresos_repuestos - costes_repuestos 
+        },
+        mo_chapa: { 
+          ingresos: ingresos_mo_chapa, 
+          costes: costes_mo_chapa, 
+          margen: ingresos_mo_chapa - costes_mo_chapa 
+        },
+        mo_pintura: { 
+          ingresos: ingresos_mo_pintura, 
+          costes: costes_mo_pintura, 
+          margen: ingresos_mo_pintura - costes_mo_pintura 
+        },
+        mat_pintura: { 
+          ingresos: ingresos_mat_pintura, 
+          costes: costes_mat_pintura, 
+          margen: ingresos_mat_pintura - costes_mat_pintura 
+        }
+      }
+    };
   };
 
   const formatCurrency = (value: number) => {
@@ -80,6 +216,67 @@ const Results = () => {
       });
     }, 1500);
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+            <p className="text-lg font-medium text-foreground">Cargando análisis de rentabilidad...</p>
+            <p className="text-sm text-muted-foreground mt-2">Calculando márgenes y generando informe</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <Card className="border-destructive/50 bg-destructive/5">
+          <CardContent className="p-6">
+            <div className="flex items-center space-x-3">
+              <AlertCircle className="h-6 w-6 text-destructive" />
+              <div>
+                <h3 className="font-semibold text-destructive">Error al cargar el análisis</h3>
+                <p className="text-sm text-muted-foreground mt-1">{error}</p>
+              </div>
+            </div>
+            <div className="mt-4">
+              <Link to="/app/nuevo">
+                <Button variant="outline">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Volver al inicio
+                </Button>
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // No results state
+  if (!results) {
+    return (
+      <div className="max-w-6xl mx-auto">
+        <Card>
+          <CardContent className="p-6 text-center">
+            <p className="text-muted-foreground">No se encontraron datos para este análisis.</p>
+            <Link to="/app/nuevo" className="mt-4 inline-block">
+              <Button variant="outline">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Volver al inicio
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-6xl mx-auto">
