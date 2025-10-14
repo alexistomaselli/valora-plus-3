@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Upload, FileText, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 const NewAnalysis = () => {
@@ -66,19 +67,22 @@ const NewAnalysis = () => {
 
   const uploadFile = async (file: File) => {
     setIsUploading(true);
-    
+
     try {
-      // Check if user is authenticated
       if (!session?.access_token) {
         throw new Error('Usuario no autenticado');
       }
 
       const formData = new FormData();
       formData.append('file', file);
-      
-      // Usar Edge Function simplificada como proxy
-      const response = await fetch('https://piynzvpnurnvbrmkyneo.supabase.co/functions/v1/upload-pdf', {
+
+      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-pdf`;
+
+      const response = await fetch(apiUrl, {
         method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
         body: formData,
       });
       

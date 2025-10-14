@@ -1,39 +1,36 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient } from 'npm:@supabase/supabase-js@2'
 
-// Definimos los headers CORS
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Info, Apikey',
 }
 
-// Exportamos la función handler según la documentación de Supabase Edge Functions
-export const handler = async (req: Request) => {
-  // Handle CORS preflight requests
+Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders })
+    return new Response(null, {
+      status: 200,
+      headers: corsHeaders,
+    })
   }
 
   try {
     console.log('Processing n8n webhook data...')
-    
+
     if (req.method !== 'POST') {
-      return new Response('Method not allowed', { 
-        status: 405, 
-        headers: corsHeaders 
+      return new Response('Method not allowed', {
+        status: 405,
+        headers: corsHeaders
       })
     }
 
-    // Initialize Supabase client
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     const supabase = createClient(supabaseUrl, supabaseServiceKey)
 
-    // Get the JSON data from the request
     const webhookData = await req.json()
     console.log('Received webhook data:', webhookData)
 
-    // Extract analysis ID from the webhook data
-    // This should be sent by n8n along with the processed data
     const { analysisId, metadata, totales } = webhookData
 
     if (!analysisId) {
@@ -43,7 +40,6 @@ export const handler = async (req: Request) => {
       })
     }
 
-    // Update analysis status to completed
     const { error: analysisUpdateError } = await supabase
       .from('analysis')
       .update({ status: 'completed' })
@@ -57,7 +53,6 @@ export const handler = async (req: Request) => {
       })
     }
 
-    // Insert vehicle data if provided
     if (metadata) {
       const vehicleData = {
         analysis_id: analysisId,
@@ -83,7 +78,6 @@ export const handler = async (req: Request) => {
       }
     }
 
-    // Insert insurance amounts if provided
     if (totales) {
       const insuranceData = {
         analysis_id: analysisId,
@@ -113,22 +107,25 @@ export const handler = async (req: Request) => {
 
     console.log('Successfully processed webhook data for analysis:', analysisId)
 
-    return new Response(JSON.stringify({ 
-      success: true, 
+    return new Response(JSON.stringify({
+      success: true,
       message: 'Data processed successfully',
-      analysisId 
+      analysisId
     }), {
-      headers: { 
-        ...corsHeaders, 
-        'Content-Type': 'application/json' 
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
       },
     })
 
   } catch (error) {
     console.error('Error in webhook-n8n function:', error)
-    return new Response('Internal server error', { 
-      status: 500, 
-      headers: corsHeaders 
+    return new Response(JSON.stringify({ error: error.message }), {
+      status: 500,
+      headers: {
+        ...corsHeaders,
+        'Content-Type': 'application/json'
+      }
     })
   }
-}
+})
