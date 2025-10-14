@@ -41,23 +41,68 @@ Deno.serve(async (req: Request) => {
 
     console.log('Forwarding to n8n webhook...')
 
-    const webhookResponse = await fetch(webhookUrl, {
-      method: 'POST',
-      body: webhookFormData,
-    })
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 120000) // 2 minutes timeout
 
-    if (!webhookResponse.ok) {
-      console.error(`Webhook failed with status: ${webhookResponse.status}`)
-      const errorText = await webhookResponse.text()
-      console.error('Webhook error response:', errorText)
-      return new Response('Webhook processing failed', {
-        status: 500,
-        headers: corsHeaders
+    try {
+      const webhookResponse = await fetch(webhookUrl, {
+        method: 'POST',
+        body: webhookFormData,
+        signal: controller.signal,
       })
-    }
 
-    const result = await webhookResponse.json()
-    console.log('Webhook response received:', result)
+      clearTimeout(timeoutId)
+
+      console.log(`Webhook responded with status: ${webhookResponse.status}`)
+
+      if (!webhookResponse.ok) {
+        console.error(`Webhook failed with status: ${webhookResponse.status}`)
+        const errorText = await webhookResponse.text()
+        console.error('Webhook error response:', errorText)
+        return new Response(JSON.stringify({
+          error: 'Webhook processing failed',
+          status: webhookResponse.status,
+          details: errorText
+        }), {
+          status: 500,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        })
+      }
+
+      const contentType = webhookResponse.headers.get('content-type')
+      let result
+
+      if (contentType?.includes('application/json')) {
+        result = await webhookResponse.json()
+      } else {
+        const text = await webhookResponse.text()
+        result = { message: text }
+      }
+
+      console.log('Webhook response received:', result)
+    } catch (fetchError) {
+      clearTimeout(timeoutId)
+
+      if (fetchError.name === 'AbortError') {
+        console.error('Webhook request timed out after 2 minutes')
+        return new Response(JSON.stringify({
+          error: 'Webhook request timed out',
+          message: 'The webhook took too long to respond'
+        }), {
+          status: 504,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json'
+          }
+        })
+      }
+
+      console.error('Fetch error:', fetchError)
+      throw fetchError
+    }
 
     return new Response(JSON.stringify(result), {
       headers: {
