@@ -138,11 +138,16 @@ const NewAnalysis = () => {
           status: 'completed',
           pdf_filename: file.name
         })
-        .select()
+        .select('*')
         .single();
 
-      if (analysisError || !analysis) {
-        throw new Error('Error creando análisis en base de datos');
+      if (analysisError) {
+        console.error('Error creando análisis:', analysisError);
+        throw new Error(`Error creando análisis en base de datos: ${analysisError.message}`);
+      }
+
+      if (!analysis) {
+        throw new Error('No se pudo crear el análisis');
       }
 
       const parseNumber = (str: string) => {
