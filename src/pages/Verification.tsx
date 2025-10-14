@@ -13,6 +13,7 @@ import { supabase } from "@/integrations/supabase/client";
 const Verification = () => {
   const { caseId } = useParams<{ caseId: string }>();
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [confidence, setConfidence] = useState(0.92);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +148,250 @@ const Verification = () => {
     }));
   };
 
+  const validateData = () => {
+    const errors: string[] = [];
+    
+    // Helper function to validate monetary values
+    const validateMonetaryValue = (value: string, fieldName: string, isRequired: boolean = false) => {
+      // If empty and not required, it's valid
+      if (!value || value.trim() === '') {
+        if (isRequired) {
+          errors.push(`${fieldName} es obligatorio`);
+        }
+        return;
+      }
+
+      // Clean the value: remove spaces, replace comma with dot for decimal separator
+      let cleanValue = value.trim().replace(/\s/g, '');
+      
+      // Handle Spanish decimal format (comma as decimal separator)
+      // But only if there's exactly one comma and it's followed by 1-2 digits
+      const commaMatches = cleanValue.match(/,/g);
+      if (commaMatches && commaMatches.length === 1) {
+        const parts = cleanValue.split(',');
+        if (parts.length === 2 && /^\d{1,2}$/.test(parts[1])) {
+          cleanValue = parts[0] + '.' + parts[1];
+        }
+      }
+
+      // Remove currency symbols and common separators
+      cleanValue = cleanValue.replace(/[€$£¥]/g, '');
+      
+      // Check for valid monetary format
+      // Allow: 123, 123.45, 1234.56, etc.
+      // Don't allow: multiple dots, letters, special chars (except decimal point)
+      const monetaryRegex = /^\d+(\.\d{1,2})?$/;
+      
+      if (!monetaryRegex.test(cleanValue)) {
+        errors.push(`${fieldName} debe tener un formato monetario válido (ej: 123.45)`);
+        return;
+      }
+
+      const num = parseFloat(cleanValue);
+      
+      // Check if it's a valid number
+      if (isNaN(num)) {
+        errors.push(`${fieldName} debe ser un número válido`);
+        return;
+      }
+
+      // Check if it's not negative
+      if (num < 0) {
+        errors.push(`${fieldName} no puede ser negativo`);
+        return;
+      }
+
+      // Check reasonable limits for monetary values
+      if (num > 999999.99) {
+        errors.push(`${fieldName} excede el límite máximo permitido (999,999.99 €)`);
+        return;
+      }
+
+      // Check decimal precision (max 2 decimal places)
+      const decimalPart = cleanValue.split('.')[1];
+      if (decimalPart && decimalPart.length > 2) {
+        errors.push(`${fieldName} no puede tener más de 2 decimales`);
+        return;
+      }
+    };
+
+    // Helper function to validate unit values (like UT - Unidades de Tiempo)
+    const validateUnitValue = (value: string, fieldName: string) => {
+      if (!value || value.trim() === '') return;
+
+      const cleanValue = value.trim().replace(',', '.');
+      const num = parseFloat(cleanValue);
+      
+      if (isNaN(num)) {
+        errors.push(`${fieldName} debe ser un número válido`);
+        return;
+      }
+
+      if (num < 0) {
+        errors.push(`${fieldName} no puede ser negativo`);
+        return;
+      }
+
+      if (num > 9999.99) {
+        errors.push(`${fieldName} excede el límite máximo permitido (9,999.99)`);
+        return;
+      }
+    };
+
+    // Validate vehicle data
+    if (!extractedData.metadata.matricula?.trim()) {
+      errors.push('La matrícula es obligatoria');
+    }
+
+    // Validate monetary fields
+    validateMonetaryValue(extractedData.metadata.precio_hora, 'Precio por hora');
+    validateMonetaryValue(extractedData.totales.repuestos_total, 'Total Repuestos');
+    validateMonetaryValue(extractedData.totales.mo_chapa_eur, 'M.O. Chapa (€)');
+    validateMonetaryValue(extractedData.totales.mo_pintura_eur, 'M.O. Pintura (€)');
+    validateMonetaryValue(extractedData.totales.mat_pintura_eur, 'Materiales Pintura (€)');
+    validateMonetaryValue(extractedData.totales.subtotal_neto, 'Subtotal sin IVA');
+    validateMonetaryValue(extractedData.totales.iva, 'IVA');
+    validateMonetaryValue(extractedData.totales.total_con_iva, 'Total con IVA');
+
+    // Validate unit fields (UT)
+    validateUnitValue(extractedData.totales.mo_chapa_ut, 'M.O. Chapa (UT)');
+    validateUnitValue(extractedData.totales.mo_pintura_ut, 'M.O. Pintura (UT)');
+
+    // Cross-validation: Check if totals make sense
+    if (extractedData.totales.subtotal_neto && extractedData.totales.iva && extractedData.totales.total_con_iva) {
+      const subtotal = parseFloat(extractedData.totales.subtotal_neto.replace(',', '.'));
+      const iva = parseFloat(extractedData.totales.iva.replace(',', '.'));
+      const total = parseFloat(extractedData.totales.total_con_iva.replace(',', '.'));
+      
+      if (!isNaN(subtotal) && !isNaN(iva) && !isNaN(total)) {
+        const calculatedTotal = subtotal + iva;
+        const difference = Math.abs(calculatedTotal - total);
+        
+        // Allow small rounding differences (up to 0.01)
+        if (difference > 0.01) {
+          errors.push('Los totales no cuadran: Subtotal + IVA debe igual Total con IVA');
+        }
+      }
+    }
+
+    return errors;
+  };
+
+  // Helper function to safely parse monetary values
+  const parseMonetaryValue = (value: string | undefined | null): number | null => {
+    if (!value || value.trim() === '') return null;
+    
+    // Remove currency symbols, spaces, and normalize decimal separators
+    const cleanValue = value
+      .toString()
+      .trim()
+      .replace(/[€$\s]/g, '') // Remove currency symbols and spaces
+      .replace(/\./g, '') // Remove thousands separators (dots)
+      .replace(',', '.'); // Convert decimal comma to dot
+    
+    const parsed = parseFloat(cleanValue);
+    return isNaN(parsed) ? null : parsed;
+  };
+
+  const handleSaveChanges = async () => {
+    if (!caseId) {
+      toast({
+        title: "Error",
+        description: "No se encontró el ID del análisis",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // Validate data before saving
+    const validationErrors = validateData();
+    if (validationErrors.length > 0) {
+      toast({
+        title: "Error de validación",
+        description: validationErrors.join('. '),
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    setIsSaving(true);
+    
+    try {
+      // Update vehicle_data table
+      const vehicleUpdateData = {
+        license_plate: extractedData.metadata.matricula || null,
+        vin: extractedData.metadata.bastidor || null,
+        manufacturer: extractedData.metadata.fabricante || null,
+        model: extractedData.metadata.modelo || null,
+        internal_reference: extractedData.metadata.referencia || null,
+        system: extractedData.metadata.sistema || null,
+        hourly_price: parseMonetaryValue(extractedData.metadata.precio_hora)
+      };
+
+      const { error: vehicleError } = await supabase
+        .from('vehicle_data')
+        .update(vehicleUpdateData)
+        .eq('analysis_id', caseId);
+
+      if (vehicleError) {
+        throw new Error(`Error actualizando datos del vehículo: ${vehicleError.message}`);
+      }
+
+      // Update insurance_amounts table
+      const insuranceUpdateData = {
+        total_spare_parts_eur: parseMonetaryValue(extractedData.totales.repuestos_total),
+        bodywork_labor_ut: parseMonetaryValue(extractedData.totales.mo_chapa_ut),
+        bodywork_labor_eur: parseMonetaryValue(extractedData.totales.mo_chapa_eur),
+        painting_labor_ut: parseMonetaryValue(extractedData.totales.mo_pintura_ut),
+        painting_labor_eur: parseMonetaryValue(extractedData.totales.mo_pintura_eur),
+        paint_material_eur: parseMonetaryValue(extractedData.totales.mat_pintura_eur),
+        net_subtotal: parseMonetaryValue(extractedData.totales.subtotal_neto),
+        iva_amount: parseMonetaryValue(extractedData.totales.iva),
+        total_with_iva: parseMonetaryValue(extractedData.totales.total_con_iva)
+      };
+
+      const { error: insuranceError } = await supabase
+        .from('insurance_amounts')
+        .update(insuranceUpdateData)
+        .eq('analysis_id', caseId);
+
+      if (insuranceError) {
+        throw new Error(`Error actualizando importes de la aseguradora: ${insuranceError.message}`);
+      }
+
+      toast({
+        title: "Cambios guardados",
+        description: "Los datos han sido actualizados correctamente",
+      });
+
+      return true;
+
+    } catch (err) {
+      console.error('Error saving changes:', err);
+      toast({
+        title: "Error al guardar",
+        description: err instanceof Error ? err.message : 'Error desconocido al guardar los cambios',
+        variant: "destructive"
+      });
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleEditToggle = async () => {
+    if (isEditing) {
+      // If we're finishing editing, save changes first
+      const saveSuccess = await handleSaveChanges();
+      if (saveSuccess) {
+        setIsEditing(false);
+      }
+    } else {
+      // If we're starting to edit, just toggle the state
+      setIsEditing(true);
+    }
+  };
+
   const handleContinue = () => {
     toast({
       title: "Datos verificados",
@@ -248,10 +493,20 @@ const Verification = () => {
             <Button 
               variant="outline" 
               size="sm"
-              onClick={() => setIsEditing(!isEditing)}
+              onClick={handleEditToggle}
+              disabled={isSaving}
             >
-              <Edit3 className="mr-2 h-4 w-4" />
-              {isEditing ? 'Finalizar edición' : 'Editar datos'}
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                <>
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  {isEditing ? 'Finalizar edición' : 'Editar datos'}
+                </>
+              )}
             </Button>
           </div>
         </CardContent>

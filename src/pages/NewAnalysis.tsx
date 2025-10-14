@@ -73,12 +73,70 @@ const NewAnalysis = () => {
         throw new Error('Usuario no autenticado');
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
+      // PASO 1: Subir PDF a Supabase Storage
+      console.log('Subiendo PDF a Supabase Storage...');
+      
+      const fileName = `${session.user.id}/${Date.now()}_${file.name}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('analysis-pdfs')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
 
+      if (uploadError) {
+        console.error('Error subiendo PDF:', uploadError);
+        throw new Error(`Error subiendo PDF: ${uploadError.message}`);
+      }
+
+      // PASO 2: Obtener URL firmada del PDF (válida por 1 año)
+      const { data: urlData, error: urlError } = await supabase.storage
+        .from('analysis-pdfs')
+        .createSignedUrl(fileName, 31536000); // 1 año en segundos
+
+      if (urlError) {
+        console.error('Error generando URL firmada:', urlError);
+        // Si falla la generación de URL, eliminar el PDF subido
+        await supabase.storage.from('analysis-pdfs').remove([fileName]);
+        throw new Error(`Error generando URL del PDF: ${urlError.message}`);
+      }
+
+      const pdfUrl = urlData.signedUrl;
+      console.log('PDF subido exitosamente:', pdfUrl);
+
+      // PASO 3: Crear registro en analysis con status 'processing'
+      const { data: analysis, error: analysisError } = await supabase
+        .from('analysis')
+        .insert({
+          user_id: session.user.id,
+          status: 'processing',
+          pdf_filename: file.name,
+          pdf_url: pdfUrl
+        })
+        .select('*')
+        .single();
+
+      if (analysisError) {
+        console.error('Error creando análisis:', analysisError);
+        // Si falla la creación del análisis, eliminar el PDF subido
+        await supabase.storage.from('analysis-pdfs').remove([fileName]);
+        throw new Error(`Error creando análisis en base de datos: ${analysisError.message}`);
+      }
+
+      if (!analysis) {
+        await supabase.storage.from('analysis-pdfs').remove([fileName]);
+        throw new Error('No se pudo crear el análisis');
+      }
+
+      // PASO 4: Enviar archivo PDF a n8n para procesamiento (mantiene compatibilidad)
+      console.log('Enviando archivo PDF a n8n...');
+      
       const webhookUrl = 'https://bot-bitrix-n8n.uhcoic.easypanel.host/webhook/23154e6f-420b-4186-be36-8b7585da797a';
-
-      console.log('Enviando PDF a n8n...');
+      
+      const formData = new FormData();
+      formData.append('file', file); // Enviar el archivo original como espera n8n
+      formData.append('analysis_id', analysis.id);
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -86,12 +144,18 @@ const NewAnalysis = () => {
       });
 
       console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Error response:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}`);
+        
+        // Marcar análisis como fallido pero mantener PDF
+        await supabase
+          .from('analysis')
+          .update({ status: 'failed' })
+          .eq('id', analysis.id);
+        
+        throw new Error(`Error en n8n: ${response.status} - ${errorText}`);
       }
 
       const responseText = await response.text();
@@ -104,19 +168,28 @@ const NewAnalysis = () => {
         result = JSON.parse(responseText);
       } catch (parseError) {
         console.error('JSON parse error:', parseError);
+        
+        // Marcar análisis como fallido
+        await supabase
+          .from('analysis')
+          .update({ status: 'failed' })
+          .eq('id', analysis.id);
+        
         throw new Error('No se pudo parsear la respuesta de n8n');
       }
 
       console.log('=== PARSED RESPONSE ===');
       console.log(JSON.stringify(result, null, 2));
-      console.log('Type:', typeof result);
-      console.log('Is Array:', Array.isArray(result));
       console.log('=======================');
 
       // N8N puede devolver un objeto o un array con un objeto
       let extractedData;
       if (Array.isArray(result)) {
         if (result.length === 0) {
+          await supabase
+            .from('analysis')
+            .update({ status: 'failed' })
+            .eq('id', analysis.id);
           throw new Error('N8N devolvió un array vacío');
         }
         extractedData = result[0];
@@ -124,6 +197,10 @@ const NewAnalysis = () => {
         extractedData = result;
       } else {
         console.error('Result is not valid:', result);
+        await supabase
+          .from('analysis')
+          .update({ status: 'failed' })
+          .eq('id', analysis.id);
         throw new Error('Respuesta de n8n no válida: ' + JSON.stringify(result));
       }
 
@@ -131,31 +208,40 @@ const NewAnalysis = () => {
       console.log(JSON.stringify(extractedData, null, 2));
       console.log('======================');
 
-      const { data: analysis, error: analysisError } = await supabase
-        .from('analysis')
-        .insert({
-          user_id: session.user.id,
-          status: 'completed',
-          pdf_filename: file.name
-        })
-        .select('*')
-        .single();
-
-      if (analysisError) {
-        console.error('Error creando análisis:', analysisError);
-        throw new Error(`Error creando análisis en base de datos: ${analysisError.message}`);
-      }
-
-      if (!analysis) {
-        throw new Error('No se pudo crear el análisis');
-      }
-
       const parseNumber = (str: string) => {
         if (!str) return null;
         const cleaned = str.replace(/[€\s.]/g, '').replace(',', '.');
         const num = parseFloat(cleaned);
         return isNaN(num) ? null : num;
       };
+
+      // Calcular subtotal sin IVA, IVA y total con IVA
+      const repuestos = parseNumber(extractedData.repuestos_total) || 0;
+      const moChapa = parseNumber(extractedData.mo_chapa_eur) || 0;
+      const moPintura = parseNumber(extractedData.mo_pintura_eur) || 0;
+      const matPintura = parseNumber(extractedData.mat_pintura_eur) || 0;
+      
+      const subtotalSinIva = repuestos + moChapa + moPintura + matPintura;
+      const ivaAmount = subtotalSinIva * 0.21; // 21% IVA
+      const totalConIva = subtotalSinIva + ivaAmount;
+
+      console.log('=== CÁLCULOS IVA ===');
+      console.log('Repuestos:', repuestos);
+      console.log('M.O. Chapa:', moChapa);
+      console.log('M.O. Pintura:', moPintura);
+      console.log('Mat. Pintura:', matPintura);
+      console.log('Subtotal sin IVA:', subtotalSinIva);
+      console.log('IVA (21%):', ivaAmount);
+      console.log('Total con IVA:', totalConIva);
+      console.log('===================');
+
+      // Logs adicionales para debugging
+      console.log('=== DEBUGGING DATOS EXTRAÍDOS ===');
+      console.log('Analysis ID:', analysis.id);
+      console.log('User ID:', session.user.id);
+      console.log('Extracted Data Keys:', Object.keys(extractedData));
+      console.log('Raw extracted data:', JSON.stringify(extractedData, null, 2));
+      console.log('================================');
 
       const { error: vehicleError } = await supabase
         .from('vehicle_data')
@@ -175,21 +261,42 @@ const NewAnalysis = () => {
         throw new Error('Error guardando datos del vehículo');
       }
 
+      // Preparar datos para insurance_amounts
+      const insuranceData = {
+        analysis_id: analysis.id,
+        total_spare_parts_eur: parseNumber(extractedData.repuestos_total),
+        bodywork_labor_ut: parseNumber(extractedData.mo_chapa_ut),
+        bodywork_labor_eur: parseNumber(extractedData.mo_chapa_eur),
+        painting_labor_ut: parseNumber(extractedData.mo_pintura_ut),
+        painting_labor_eur: parseNumber(extractedData.mo_pintura_eur),
+        paint_material_eur: parseNumber(extractedData.mat_pintura_eur),
+        net_subtotal: subtotalSinIva,
+        iva_amount: ivaAmount,
+        total_with_iva: totalConIva
+      };
+
+      console.log('=== DATOS PARA INSURANCE_AMOUNTS ===');
+      console.log('Insurance Data:', JSON.stringify(insuranceData, null, 2));
+      console.log('===================================');
+
       const { error: insuranceError } = await supabase
         .from('insurance_amounts')
-        .insert({
-          analysis_id: analysis.id,
-          total_spare_parts_eur: parseNumber(extractedData.repuestos_total),
-          bodywork_labor_ut: parseNumber(extractedData.mo_chapa_ut),
-          bodywork_labor_eur: parseNumber(extractedData.mo_chapa_eur),
-          painting_labor_ut: parseNumber(extractedData.mo_pintura_ut),
-          painting_labor_eur: parseNumber(extractedData.mo_pintura_eur),
-          paint_material_eur: parseNumber(extractedData.mat_pintura_eur)
-        });
+        .insert(insuranceData);
 
       if (insuranceError) {
         console.error('Error guardando insurance_amounts:', insuranceError);
         throw new Error('Error guardando importes de la aseguradora');
+      }
+
+      // PASO 5: Marcar análisis como completado
+      const { error: updateError } = await supabase
+        .from('analysis')
+        .update({ status: 'completed' })
+        .eq('id', analysis.id);
+
+      if (updateError) {
+        console.error('Error actualizando status:', updateError);
+        // No lanzamos error aquí porque los datos ya están guardados
       }
 
       setIsUploading(false);

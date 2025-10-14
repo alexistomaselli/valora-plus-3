@@ -79,26 +79,27 @@ Deno.serve(async (req: Request) => {
     }
 
     if (totales) {
-      const insuranceData = {
-        analysis_id: analysisId,
+      // Solo actualizar los campos que vienen de n8n, preservando los calculados
+      const updateData = {
         total_spare_parts_eur: totales.total_repuestos ? parseFloat(totales.total_repuestos) : null,
         bodywork_labor_ut: totales.mo_carroceria_ut ? parseFloat(totales.mo_carroceria_ut) : null,
         bodywork_labor_eur: totales.mo_carroceria_eur ? parseFloat(totales.mo_carroceria_eur) : null,
         painting_labor_ut: totales.mo_pintura_ut ? parseFloat(totales.mo_pintura_ut) : null,
         painting_labor_eur: totales.mo_pintura_eur ? parseFloat(totales.mo_pintura_eur) : null,
         paint_material_eur: totales.material_pintura ? parseFloat(totales.material_pintura) : null,
-        net_subtotal: totales.subtotal_neto ? parseFloat(totales.subtotal_neto) : null,
-        iva_amount: totales.iva ? parseFloat(totales.iva) : null,
-        total_with_iva: totales.total_con_iva ? parseFloat(totales.total_con_iva) : null
+        // NO incluimos net_subtotal, iva_amount, total_with_iva para preservar los valores calculados
       }
+
+      console.log('Updating insurance_amounts with data from n8n:', updateData)
 
       const { error: insuranceError } = await supabase
         .from('insurance_amounts')
-        .insert(insuranceData)
+        .update(updateData)
+        .eq('analysis_id', analysisId)
 
       if (insuranceError) {
-        console.error('Error inserting insurance amounts:', insuranceError)
-        return new Response('Failed to insert insurance amounts', { 
+        console.error('Error updating insurance amounts:', insuranceError)
+        return new Response('Failed to update insurance amounts', { 
           status: 500, 
           headers: corsHeaders 
         })
