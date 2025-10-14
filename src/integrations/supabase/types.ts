@@ -43,7 +43,7 @@ export type Database = {
           pdf_url: string | null
           status: string
           updated_at: string | null
-          workshop_id: string
+          user_id: string
         }
         Insert: {
           analysis_month?: string
@@ -53,7 +53,7 @@ export type Database = {
           pdf_url?: string | null
           status?: string
           updated_at?: string | null
-          workshop_id: string
+          user_id: string
         }
         Update: {
           analysis_month?: string
@@ -63,14 +63,14 @@ export type Database = {
           pdf_url?: string | null
           status?: string
           updated_at?: string | null
-          workshop_id?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "analysis_workshop_id_fkey"
-            columns: ["workshop_id"]
+            foreignKeyName: "analysis_user_id_fkey"
+            columns: ["user_id"]
             isOneToOne: false
-            referencedRelation: "workshops"
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
