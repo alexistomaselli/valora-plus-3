@@ -26,7 +26,7 @@ const Verification = () => {
       bastidor: "", 
       fabricante: "",
       modelo: "",
-      fecha: "",
+      valuation_date: "",
       referencia: "",
       sistema: "",
       precio_hora: ""
@@ -39,6 +39,7 @@ const Verification = () => {
       mo_pintura_eur: "",
       mat_pintura_eur: "",
       subtotal_neto: "",
+      iva_percentage: "",
       iva: "",
       total_con_iva: ""
     }
@@ -105,7 +106,7 @@ const Verification = () => {
                bastidor: vehicleData.vin || "", 
                fabricante: vehicleData.manufacturer || "",
                modelo: vehicleData.model || "",
-               fecha: "", // This field doesn't exist in vehicle_data table
+               valuation_date: analysis.valuation_date || "",
                referencia: vehicleData.internal_reference || "",
                sistema: vehicleData.system || "",
                precio_hora: vehicleData.hourly_price?.toString() || ""
@@ -118,6 +119,7 @@ const Verification = () => {
                mo_pintura_eur: insuranceData.painting_labor_eur?.toString() || "",
                mat_pintura_eur: insuranceData.paint_material_eur?.toString() || "",
                subtotal_neto: insuranceData.net_subtotal?.toString() || "",
+               iva_percentage: (insuranceData as any).iva_percentage?.toString() || "",
                iva: insuranceData.iva_amount?.toString() || "",
                total_con_iva: insuranceData.total_with_iva?.toString() || ""
              }
@@ -161,29 +163,16 @@ const Verification = () => {
         return;
       }
 
-      // Clean the value: remove spaces, replace comma with dot for decimal separator
-      let cleanValue = value.trim().replace(/\s/g, '');
+      // Clean the value: remove spaces and currency symbols
+      let cleanValue = value.trim().replace(/\s/g, '').replace(/[€$£¥]/g, '');
       
-      // Handle Spanish decimal format (comma as decimal separator)
-      // But only if there's exactly one comma and it's followed by 1-2 digits
-      const commaMatches = cleanValue.match(/,/g);
-      if (commaMatches && commaMatches.length === 1) {
-        const parts = cleanValue.split(',');
-        if (parts.length === 2 && /^\d{1,2}$/.test(parts[1])) {
-          cleanValue = parts[0] + '.' + parts[1];
-        }
-      }
-
-      // Remove currency symbols and common separators
-      cleanValue = cleanValue.replace(/[€$£¥]/g, '');
-      
-      // Check for valid monetary format
+      // Check for valid monetary format with point as decimal separator
       // Allow: 123, 123.45, 1234.56, etc.
-      // Don't allow: multiple dots, letters, special chars (except decimal point)
+      // Don't allow: commas, multiple dots, letters, special chars (except decimal point)
       const monetaryRegex = /^\d+(\.\d{1,2})?$/;
       
       if (!monetaryRegex.test(cleanValue)) {
-        errors.push(`${fieldName} debe tener un formato monetario válido (ej: 123.45)`);
+        errors.push(`${fieldName} debe tener un formato monetario válido usando punto como decimal (ej: 123.45)`);
         return;
       }
 
@@ -238,6 +227,38 @@ const Verification = () => {
       }
     };
 
+    // Helper function to validate percentage values
+    const validatePercentageValue = (value: string, fieldName: string) => {
+      if (!value || value.trim() === '') return;
+
+      const cleanValue = value.trim();
+      
+      // Check for valid percentage format with point as decimal separator
+      const percentageRegex = /^\d+(\.\d{1,2})?$/;
+      
+      if (!percentageRegex.test(cleanValue)) {
+        errors.push(`${fieldName} debe tener un formato válido usando punto como decimal (ej: 21.00)`);
+        return;
+      }
+      
+      const num = parseFloat(cleanValue);
+      
+      if (isNaN(num)) {
+        errors.push(`${fieldName} debe ser un número válido`);
+        return;
+      }
+
+      if (num < 0) {
+        errors.push(`${fieldName} no puede ser negativo`);
+        return;
+      }
+
+      if (num > 100) {
+        errors.push(`${fieldName} no puede ser mayor a 100%`);
+        return;
+      }
+    };
+
     // Validate vehicle data
     if (!extractedData.metadata.matricula?.trim()) {
       errors.push('La matrícula es obligatoria');
@@ -250,7 +271,8 @@ const Verification = () => {
     validateMonetaryValue(extractedData.totales.mo_pintura_eur, 'M.O. Pintura (€)');
     validateMonetaryValue(extractedData.totales.mat_pintura_eur, 'Materiales Pintura (€)');
     validateMonetaryValue(extractedData.totales.subtotal_neto, 'Subtotal sin IVA');
-    validateMonetaryValue(extractedData.totales.iva, 'IVA');
+    validatePercentageValue(extractedData.totales.iva_percentage, 'Porcentaje IVA');
+    validateMonetaryValue(extractedData.totales.iva, 'Monto IVA');
     validateMonetaryValue(extractedData.totales.total_con_iva, 'Total con IVA');
 
     // Validate unit fields (UT)
@@ -281,14 +303,14 @@ const Verification = () => {
   const parseMonetaryValue = (value: string | undefined | null): number | null => {
     if (!value || value.trim() === '') return null;
     
-    // Remove currency symbols, spaces, and normalize decimal separators
-    const cleanValue = value
+    // Remove currency symbols and spaces
+    let cleanValue = value
       .toString()
       .trim()
-      .replace(/[€$\s]/g, '') // Remove currency symbols and spaces
-      .replace(/\./g, '') // Remove thousands separators (dots)
-      .replace(',', '.'); // Convert decimal comma to dot
+      .replace(/[€$\s]/g, ''); // Remove currency symbols and spaces
     
+    // For Spanish format, we expect point (.) as decimal separator
+    // Don't modify the decimal point - keep it as is
     const parsed = parseFloat(cleanValue);
     return isNaN(parsed) ? null : parsed;
   };
@@ -346,6 +368,7 @@ const Verification = () => {
         painting_labor_eur: parseMonetaryValue(extractedData.totales.mo_pintura_eur),
         paint_material_eur: parseMonetaryValue(extractedData.totales.mat_pintura_eur),
         net_subtotal: parseMonetaryValue(extractedData.totales.subtotal_neto),
+        iva_percentage: parseMonetaryValue(extractedData.totales.iva_percentage),
         iva_amount: parseMonetaryValue(extractedData.totales.iva),
         total_with_iva: parseMonetaryValue(extractedData.totales.total_con_iva)
       };
@@ -357,6 +380,20 @@ const Verification = () => {
 
       if (insuranceError) {
         throw new Error(`Error actualizando importes de la aseguradora: ${insuranceError.message}`);
+      }
+
+      // Update analysis table with valuation_date
+      const analysisUpdateData = {
+        valuation_date: extractedData.metadata.valuation_date || null
+      };
+
+      const { error: analysisError } = await supabase
+        .from('analysis')
+        .update(analysisUpdateData)
+        .eq('id', caseId);
+
+      if (analysisError) {
+        throw new Error(`Error actualizando fecha de análisis: ${analysisError.message}`);
       }
 
       toast({
@@ -534,12 +571,12 @@ const Verification = () => {
                 />
               </div>
               <div>
-                <Label htmlFor="fecha">Fecha</Label>
+                <Label htmlFor="valuation_date">Fecha de Valoración</Label>
                 <Input
-                  id="fecha"
+                  id="valuation_date"
                   type="date"
-                  value={extractedData.metadata.fecha}
-                  onChange={(e) => handleInputChange('metadata', 'fecha', e.target.value)}
+                  value={extractedData.metadata.valuation_date}
+                  onChange={(e) => handleInputChange('metadata', 'valuation_date', e.target.value)}
                   readOnly={!isEditing}
                   className={!isEditing ? "bg-muted/50" : ""}
                 />
@@ -724,6 +761,43 @@ const Verification = () => {
             <div className="border-t pt-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
+                  <Label htmlFor="iva">Monto IVA</Label>
+                  <div className="relative">
+                    <Input
+                      id="iva"
+                      value={extractedData.totales.iva}
+                      onChange={(e) => handleInputChange('totales', 'iva', e.target.value)}
+                      readOnly={!isEditing}
+                      className={!isEditing ? "bg-muted/50" : ""}
+                    />
+                    {!isEditing && (
+                      <div className="absolute right-3 top-2.5 text-sm text-muted-foreground">
+                        {formatCurrency(extractedData.totales.iva)}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="iva_percentage">Porcentaje IVA</Label>
+                  <div className="relative">
+                    <Input
+                      id="iva_percentage"
+                      value={extractedData.totales.iva_percentage}
+                      onChange={(e) => handleInputChange('totales', 'iva_percentage', e.target.value)}
+                      readOnly={!isEditing}
+                      className={!isEditing ? "bg-muted/50" : ""}
+                    />
+                    {!isEditing && (
+                      <div className="absolute right-3 top-2.5 text-sm text-muted-foreground">
+                        {extractedData.totales.iva_percentage}%
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <div>
                   <Label htmlFor="subtotal_neto">Subtotal sin IVA</Label>
                   <div className="relative">
                     <Input
@@ -748,10 +822,10 @@ const Verification = () => {
                       value={extractedData.totales.total_con_iva}
                       onChange={(e) => handleInputChange('totales', 'total_con_iva', e.target.value)}
                       readOnly={!isEditing}
-                      className={!isEditing ? "bg-muted/50" : ""}
+                      className={!isEditing ? "bg-muted/50 font-semibold" : "font-semibold"}
                     />
                     {!isEditing && (
-                      <div className="absolute right-3 top-2.5 text-sm text-muted-foreground">
+                      <div className="absolute right-3 top-2.5 text-sm font-semibold text-foreground">
                         {formatCurrency(extractedData.totales.total_con_iva)}
                       </div>
                     )}

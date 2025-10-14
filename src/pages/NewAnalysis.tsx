@@ -112,7 +112,8 @@ const NewAnalysis = () => {
           user_id: session.user.id,
           status: 'processing',
           pdf_filename: file.name,
-          pdf_url: pdfUrl
+          pdf_url: pdfUrl,
+          analysis_date: new Date().toISOString().split('T')[0] // Fecha actual en formato YYYY-MM-DD
         })
         .select('*')
         .single();
@@ -215,6 +216,17 @@ const NewAnalysis = () => {
         return isNaN(num) ? null : num;
       };
 
+      // Extraer porcentaje de IVA de la respuesta de n8n
+      const parseIvaPercentage = (ivaStr: string) => {
+        if (!ivaStr) return 21; // Default 21% si no viene el dato
+        const cleaned = ivaStr.replace('%', '');
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? 21 : num;
+      };
+
+      const ivaPercentage = parseIvaPercentage(extractedData.iva);
+      const ivaDecimal = ivaPercentage / 100;
+
       // Calcular subtotal sin IVA, IVA y total con IVA
       const repuestos = parseNumber(extractedData.repuestos_total) || 0;
       const moChapa = parseNumber(extractedData.mo_chapa_eur) || 0;
@@ -222,16 +234,18 @@ const NewAnalysis = () => {
       const matPintura = parseNumber(extractedData.mat_pintura_eur) || 0;
       
       const subtotalSinIva = repuestos + moChapa + moPintura + matPintura;
-      const ivaAmount = subtotalSinIva * 0.21; // 21% IVA
+      const ivaAmount = subtotalSinIva * ivaDecimal;
       const totalConIva = subtotalSinIva + ivaAmount;
 
       console.log('=== CÁLCULOS IVA ===');
+      console.log('IVA extraído de n8n:', extractedData.iva);
+      console.log('IVA porcentaje:', ivaPercentage + '%');
       console.log('Repuestos:', repuestos);
       console.log('M.O. Chapa:', moChapa);
       console.log('M.O. Pintura:', moPintura);
       console.log('Mat. Pintura:', matPintura);
       console.log('Subtotal sin IVA:', subtotalSinIva);
-      console.log('IVA (21%):', ivaAmount);
+      console.log(`IVA (${ivaPercentage}%):`, ivaAmount);
       console.log('Total con IVA:', totalConIva);
       console.log('===================');
 
@@ -272,7 +286,8 @@ const NewAnalysis = () => {
         paint_material_eur: parseNumber(extractedData.mat_pintura_eur),
         net_subtotal: subtotalSinIva,
         iva_amount: ivaAmount,
-        total_with_iva: totalConIva
+        total_with_iva: totalConIva,
+        iva_percentage: ivaPercentage
       };
 
       console.log('=== DATOS PARA INSURANCE_AMOUNTS ===');
@@ -288,10 +303,48 @@ const NewAnalysis = () => {
         throw new Error('Error guardando importes de la aseguradora');
       }
 
-      // PASO 5: Marcar análisis como completado
+      // PASO 5: Procesar fecha_valoracion de n8n y marcar análisis como completado
+      const parseDate = (dateStr: string) => {
+        if (!dateStr) return null;
+        
+        // Intentar diferentes formatos de fecha
+        const formats = [
+          /^(\d{2})\/(\d{2})\/(\d{4})$/, // DD/MM/YYYY
+          /^(\d{4})-(\d{2})-(\d{2})$/,   // YYYY-MM-DD
+          /^(\d{2})-(\d{2})-(\d{4})$/    // DD-MM-YYYY
+        ];
+        
+        for (const format of formats) {
+          const match = dateStr.match(format);
+          if (match) {
+            if (format === formats[0] || format === formats[2]) {
+              // DD/MM/YYYY o DD-MM-YYYY
+              const [, day, month, year] = match;
+              return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+            } else {
+              // YYYY-MM-DD
+              return dateStr;
+            }
+          }
+        }
+        
+        console.warn('Formato de fecha no reconocido:', dateStr);
+        return null;
+      };
+
+      const valuation_date = parseDate(extractedData.fecha_valoracion);
+      
+      console.log('=== PROCESANDO FECHA VALORACIÓN ===');
+      console.log('fecha_valoracion de n8n:', extractedData.fecha_valoracion);
+      console.log('valuation_date procesada:', valuation_date);
+      console.log('==================================');
+
       const { error: updateError } = await supabase
         .from('analysis')
-        .update({ status: 'completed' })
+        .update({ 
+          status: 'completed',
+          valuation_date: valuation_date
+        })
         .eq('id', analysis.id);
 
       if (updateError) {

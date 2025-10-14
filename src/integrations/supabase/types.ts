@@ -36,7 +36,7 @@ export type Database = {
     Tables: {
       analysis: {
         Row: {
-          analysis_month: string
+          analysis_date: string
           created_at: string | null
           id: string
           pdf_filename: string | null
@@ -44,9 +44,10 @@ export type Database = {
           status: string
           updated_at: string | null
           user_id: string
+          valuation_date: string | null
         }
         Insert: {
-          analysis_month?: string
+          analysis_date?: string
           created_at?: string | null
           id?: string
           pdf_filename?: string | null
@@ -54,9 +55,10 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id: string
+          valuation_date?: string | null
         }
         Update: {
-          analysis_month?: string
+          analysis_date?: string
           created_at?: string | null
           id?: string
           pdf_filename?: string | null
@@ -64,6 +66,7 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id?: string
+          valuation_date?: string | null
         }
         Relationships: [
           {
@@ -464,4 +467,3 @@ export const Constants = {
     Enums: {},
   },
 } as const
-
