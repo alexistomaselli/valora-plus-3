@@ -85,16 +85,37 @@ const NewAnalysis = () => {
         body: formData,
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response headers:', response.headers);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const result = await response.json();
-      console.log('=== RESPUESTA DE N8N ===');
+      const responseText = await response.text();
+      console.log('=== RAW RESPONSE ===');
+      console.log(responseText);
+      console.log('====================');
+
+      let result;
+      try {
+        result = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('JSON parse error:', parseError);
+        throw new Error('No se pudo parsear la respuesta de n8n');
+      }
+
+      console.log('=== PARSED RESPONSE ===');
       console.log(JSON.stringify(result, null, 2));
+      console.log('Type:', typeof result);
+      console.log('Is Array:', Array.isArray(result));
+      console.log('=======================');
 
       if (!Array.isArray(result) || result.length === 0) {
-        throw new Error('Respuesta de n8n no válida');
+        console.error('Result is not a valid array:', result);
+        throw new Error('Respuesta de n8n no válida: ' + JSON.stringify(result));
       }
 
       const extractedData = result[0];
