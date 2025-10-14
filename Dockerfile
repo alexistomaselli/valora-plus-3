@@ -1,6 +1,16 @@
 # Multi-stage build para optimizar el tamaño de la imagen final
 FROM node:18-alpine AS builder
 
+# Argumentos de build para las variables de entorno de Vite
+ARG VITE_SUPABASE_URL
+ARG VITE_SUPABASE_PUBLISHABLE_KEY
+ARG VITE_SUPABASE_PROJECT_ID
+
+# Establecer las variables de entorno para el build
+ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
+ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
+ENV VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+
 # Establecer directorio de trabajo
 WORKDIR /app
 
