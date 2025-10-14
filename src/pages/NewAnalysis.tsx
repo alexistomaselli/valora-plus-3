@@ -113,12 +113,23 @@ const NewAnalysis = () => {
       console.log('Is Array:', Array.isArray(result));
       console.log('=======================');
 
-      if (!Array.isArray(result) || result.length === 0) {
-        console.error('Result is not a valid array:', result);
+      // N8N puede devolver un objeto o un array con un objeto
+      let extractedData;
+      if (Array.isArray(result)) {
+        if (result.length === 0) {
+          throw new Error('N8N devolvió un array vacío');
+        }
+        extractedData = result[0];
+      } else if (typeof result === 'object' && result !== null) {
+        extractedData = result;
+      } else {
+        console.error('Result is not valid:', result);
         throw new Error('Respuesta de n8n no válida: ' + JSON.stringify(result));
       }
 
-      const extractedData = result[0];
+      console.log('=== EXTRACTED DATA ===');
+      console.log(JSON.stringify(extractedData, null, 2));
+      console.log('======================');
 
       const { data: analysis, error: analysisError } = await supabase
         .from('analysis')
