@@ -69,48 +69,42 @@ const NewAnalysis = () => {
     setIsUploading(true);
 
     try {
-      if (!session?.access_token) {
-        throw new Error('Usuario no autenticado');
-      }
-
       const formData = new FormData();
       formData.append('file', file);
 
-      const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/upload-pdf`;
+      const webhookUrl = 'https://bot-bitrix-n8n.uhcoic.easypanel.host/webhook/23154e6f-420b-4186-be36-8b7585da797a';
 
-      const response = await fetch(apiUrl, {
+      console.log('Enviando PDF directamente a n8n...');
+
+      const response = await fetch(webhookUrl, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-        },
         body: formData,
       });
-      
+
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
-      
+
       const result = await response.json();
-      console.log('Datos del análisis:', result);
-      
+      console.log('=== RESPUESTA DE N8N ===');
+      console.log(JSON.stringify(result, null, 2));
+      console.log('========================');
+
       setIsUploading(false);
-      
+
       toast({
-        title: "PDF subido exitosamente",
-        description: "El análisis se está procesando automáticamente.",
+        title: "PDF procesado por n8n",
+        description: "Revisa la consola para ver la respuesta completa.",
       });
-      
-      // Usar el ID del análisis devuelto por la Edge Function
-      setTimeout(() => {
-        window.location.href = `/app/verificacion/${result.analysisId}`;
-      }, 1500);
-      
+
+      alert('Respuesta de n8n:\n\n' + JSON.stringify(result, null, 2));
+
     } catch (error) {
       setIsUploading(false);
       console.error('Upload error:', error);
       toast({
         title: "Error al subir PDF",
-        description: "No se pudo procesar el archivo. Inténtalo de nuevo.",
+        description: error instanceof Error ? error.message : "No se pudo procesar el archivo.",
         variant: "destructive"
       });
     }
