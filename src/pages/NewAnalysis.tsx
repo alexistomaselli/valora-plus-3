@@ -69,12 +69,16 @@ const NewAnalysis = () => {
     setIsUploading(true);
 
     try {
+      if (!session?.user?.id) {
+        throw new Error('Usuario no autenticado');
+      }
+
       const formData = new FormData();
       formData.append('file', file);
 
       const webhookUrl = 'https://bot-bitrix-n8n.uhcoic.easypanel.host/webhook/23154e6f-420b-4186-be36-8b7585da797a';
 
-      console.log('Enviando PDF directamente a n8n...');
+      console.log('Enviando PDF a n8n...');
 
       const response = await fetch(webhookUrl, {
         method: 'POST',
@@ -88,16 +92,79 @@ const NewAnalysis = () => {
       const result = await response.json();
       console.log('=== RESPUESTA DE N8N ===');
       console.log(JSON.stringify(result, null, 2));
-      console.log('========================');
+
+      if (!Array.isArray(result) || result.length === 0) {
+        throw new Error('Respuesta de n8n no válida');
+      }
+
+      const extractedData = result[0];
+
+      const { data: analysis, error: analysisError } = await supabase
+        .from('analysis')
+        .insert({
+          user_id: session.user.id,
+          status: 'completed',
+          pdf_filename: file.name
+        })
+        .select()
+        .single();
+
+      if (analysisError || !analysis) {
+        throw new Error('Error creando análisis en base de datos');
+      }
+
+      const parseNumber = (str: string) => {
+        if (!str) return null;
+        const cleaned = str.replace(/[€\s.]/g, '').replace(',', '.');
+        const num = parseFloat(cleaned);
+        return isNaN(num) ? null : num;
+      };
+
+      const { error: vehicleError } = await supabase
+        .from('vehicle_data')
+        .insert({
+          analysis_id: analysis.id,
+          license_plate: extractedData.matricula || null,
+          vin: extractedData.bastidor || null,
+          manufacturer: extractedData.fabricante || null,
+          model: extractedData.modelo || null,
+          internal_reference: extractedData.referencia || null,
+          system: extractedData.sistema || null,
+          hourly_price: parseNumber(extractedData.precio_hora)
+        });
+
+      if (vehicleError) {
+        console.error('Error guardando vehicle_data:', vehicleError);
+        throw new Error('Error guardando datos del vehículo');
+      }
+
+      const { error: insuranceError } = await supabase
+        .from('insurance_amounts')
+        .insert({
+          analysis_id: analysis.id,
+          total_spare_parts_eur: parseNumber(extractedData.repuestos_total),
+          bodywork_labor_ut: parseNumber(extractedData.mo_chapa_ut),
+          bodywork_labor_eur: parseNumber(extractedData.mo_chapa_eur),
+          painting_labor_ut: parseNumber(extractedData.mo_pintura_ut),
+          painting_labor_eur: parseNumber(extractedData.mo_pintura_eur),
+          paint_material_eur: parseNumber(extractedData.mat_pintura_eur)
+        });
+
+      if (insuranceError) {
+        console.error('Error guardando insurance_amounts:', insuranceError);
+        throw new Error('Error guardando importes de la aseguradora');
+      }
 
       setIsUploading(false);
 
       toast({
-        title: "PDF procesado por n8n",
-        description: "Revisa la consola para ver la respuesta completa.",
+        title: "PDF procesado exitosamente",
+        description: "Los datos se han extraído y guardado correctamente.",
       });
 
-      alert('Respuesta de n8n:\n\n' + JSON.stringify(result, null, 2));
+      setTimeout(() => {
+        window.location.href = `/app/verificacion/${analysis.id}`;
+      }, 1000);
 
     } catch (error) {
       setIsUploading(false);
