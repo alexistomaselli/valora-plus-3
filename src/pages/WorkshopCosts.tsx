@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ArrowRight, ArrowLeft, Calculator, AlertCircle, DollarSign, Loader2 } from "lucide-react";
+import { ArrowRight, ArrowLeft, Calculator, AlertCircle, DollarSign, Loader2, CheckCircle, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,7 @@ const WorkshopCosts = () => {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [hasExistingCalculation, setHasExistingCalculation] = useState(false);
   
   const [costs, setCosts] = useState({
     repuestos_compra: "",
@@ -29,6 +30,78 @@ const WorkshopCosts = () => {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Load existing workshop costs data
+  useEffect(() => {
+    const loadExistingData = async () => {
+      if (!caseId) return;
+      
+      setIsLoading(true);
+      try {
+        // Ensure user is authenticated
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) {
+          toast({
+            title: "Sesión expirada",
+            description: "Por favor, inicia sesión nuevamente.",
+            variant: "destructive"
+          });
+          setIsLoading(false);
+          return;
+        }
+        
+        const { data, error } = await supabase
+          .from('workshop_costs')
+          .select('*')
+          .eq('analysis_id', caseId)
+          .single();
+
+        if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
+          // Handle specific error cases
+          if (error.message?.includes('406') || error.message?.includes('Not Acceptable')) {
+            toast({
+              title: "Error de configuración",
+              description: "Problema de autenticación con la base de datos. Intenta recargar la página.",
+              variant: "destructive"
+            });
+            return;
+          }
+          
+          throw error;
+        }
+
+        if (data) {
+          // Mark that we have an existing calculation
+          setHasExistingCalculation(true);
+          
+          setCosts({
+            repuestos_compra: data.spare_parts_purchase_cost?.toString() || "",
+            mo_chapa_horas_reales: data.bodywork_actual_hours?.toString() || "",
+            mo_chapa_coste_hora: data.bodywork_hourly_cost?.toString() || "",
+            mo_pintura_horas_reales: data.painting_actual_hours?.toString() || "",
+            mo_pintura_coste_hora: data.painting_hourly_cost?.toString() || "",
+            consumibles_pintura: data.painting_consumables_cost?.toString() || "",
+            subcontratas: data.subcontractor_costs?.toString() || "",
+            otros_costes: data.other_costs?.toString() || "",
+            notas: data.notes || ""
+          });
+        } else {
+          setHasExistingCalculation(false);
+        }
+      } catch (error) {
+        console.error('Error loading workshop costs:', error);
+        toast({
+          title: "Error",
+          description: "No se pudieron cargar los datos existentes.",
+          variant: "destructive"
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadExistingData();
+  }, [caseId, toast]);
 
   const handleInputChange = (field: string, value: string) => {
     setCosts(prev => ({ ...prev, [field]: value }));
@@ -62,6 +135,16 @@ const WorkshopCosts = () => {
   };
 
   const handleCalculate = async () => {
+    // Check if calculation already exists
+    if (hasExistingCalculation) {
+      toast({
+        title: "Cálculo ya realizado",
+        description: "Ya existe un cálculo de rentabilidad para este análisis. Ve a los resultados para verlo.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     if (!validateForm()) {
       toast({
         title: "Errores en el formulario",
@@ -83,10 +166,10 @@ const WorkshopCosts = () => {
     setIsSaving(true);
 
     try {
-      // Save workshop costs to database
+      // Save workshop costs to database using insert instead of upsert
       const { error } = await supabase
         .from('workshop_costs')
-        .upsert({
+        .insert({
           analysis_id: caseId,
           spare_parts_purchase_cost: parseFloat(costs.repuestos_compra) || 0,
           bodywork_actual_hours: parseFloat(costs.mo_chapa_horas_reales) || 0,
@@ -102,6 +185,9 @@ const WorkshopCosts = () => {
       if (error) {
         throw error;
       }
+
+      // Mark that we now have a calculation
+      setHasExistingCalculation(true);
 
       toast({
         title: "Datos guardados",
@@ -147,23 +233,47 @@ const WorkshopCosts = () => {
 
   return (
     <div className="max-w-4xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            Costes Reales del Taller
-          </h1>
-          <p className="text-lg text-muted-foreground">
-            Introduce los costes reales que has tenido para este expediente
-          </p>
+      {/* Loading state */}
+      {isLoading && (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center space-x-3">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <span className="text-lg text-muted-foreground">Cargando datos existentes...</span>
+          </div>
         </div>
-        <Link to="/app/verificacion/demo-case-id">
-          <Button variant="outline">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Atrás
-          </Button>
-        </Link>
-      </div>
+      )}
+
+      {/* Main content - hidden while loading */}
+      {!isLoading && (
+        <>
+          {/* Header */}
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <div className="flex items-center space-x-3 mb-2">
+                <h1 className="text-3xl font-bold text-foreground">
+                  Costes Reales del Taller
+                </h1>
+                {hasExistingCalculation && (
+                  <div className="flex items-center space-x-2 bg-green-100 text-green-700 px-3 py-1 rounded-full text-sm font-medium">
+                    <CheckCircle className="h-4 w-4" />
+                    <span>Calculado</span>
+                  </div>
+                )}
+              </div>
+              <p className="text-lg text-muted-foreground">
+                {hasExistingCalculation 
+                  ? "Revisa los costes reales que se utilizaron para el cálculo de rentabilidad"
+                  : "Introduce los costes reales que has tenido para este expediente"
+                }
+              </p>
+            </div>
+            <Link to="/app/verificacion/demo-case-id">
+              <Button variant="outline">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Atrás
+              </Button>
+            </Link>
+          </div>
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Cost input forms */}
@@ -181,7 +291,7 @@ const WorkshopCosts = () => {
             </CardHeader>
             <CardContent>
               <div>
-                <Label htmlFor="repuestos_compra">Coste de compra repuestos (€) *</Label>
+                <Label htmlFor="repuestos_compra">Coste de compra de repuestos (€) *</Label>
                 <Input
                   id="repuestos_compra"
                   type="number"
@@ -191,6 +301,7 @@ const WorkshopCosts = () => {
                   value={costs.repuestos_compra}
                   onChange={(e) => handleInputChange('repuestos_compra', e.target.value)}
                   className={errors.repuestos_compra ? "border-destructive" : ""}
+                  disabled={hasExistingCalculation}
                 />
                 {errors.repuestos_compra && (
                   <p className="text-sm text-destructive mt-1">{errors.repuestos_compra}</p>
@@ -220,6 +331,7 @@ const WorkshopCosts = () => {
                     value={costs.mo_chapa_horas_reales}
                     onChange={(e) => handleInputChange('mo_chapa_horas_reales', e.target.value)}
                     className={errors.mo_chapa_horas_reales ? "border-destructive" : ""}
+                    disabled={hasExistingCalculation}
                   />
                   {errors.mo_chapa_horas_reales && (
                     <p className="text-sm text-destructive mt-1">{errors.mo_chapa_horas_reales}</p>
@@ -236,6 +348,7 @@ const WorkshopCosts = () => {
                     value={costs.mo_chapa_coste_hora}
                     onChange={(e) => handleInputChange('mo_chapa_coste_hora', e.target.value)}
                     className={errors.mo_chapa_coste_hora ? "border-destructive" : ""}
+                    disabled={hasExistingCalculation}
                   />
                   {errors.mo_chapa_coste_hora && (
                     <p className="text-sm text-destructive mt-1">{errors.mo_chapa_coste_hora}</p>
@@ -271,6 +384,7 @@ const WorkshopCosts = () => {
                     value={costs.mo_pintura_horas_reales}
                     onChange={(e) => handleInputChange('mo_pintura_horas_reales', e.target.value)}
                     className={errors.mo_pintura_horas_reales ? "border-destructive" : ""}
+                    disabled={hasExistingCalculation}
                   />
                   {errors.mo_pintura_horas_reales && (
                     <p className="text-sm text-destructive mt-1">{errors.mo_pintura_horas_reales}</p>
@@ -287,6 +401,7 @@ const WorkshopCosts = () => {
                     value={costs.mo_pintura_coste_hora}
                     onChange={(e) => handleInputChange('mo_pintura_coste_hora', e.target.value)}
                     className={errors.mo_pintura_coste_hora ? "border-destructive" : ""}
+                    disabled={hasExistingCalculation}
                   />
                   {errors.mo_pintura_coste_hora && (
                     <p className="text-sm text-destructive mt-1">{errors.mo_pintura_coste_hora}</p>
@@ -321,6 +436,7 @@ const WorkshopCosts = () => {
                   value={costs.consumibles_pintura}
                   onChange={(e) => handleInputChange('consumibles_pintura', e.target.value)}
                   className={errors.consumibles_pintura ? "border-destructive" : ""}
+                  disabled={hasExistingCalculation}
                 />
                 {errors.consumibles_pintura && (
                   <p className="text-sm text-destructive mt-1">{errors.consumibles_pintura}</p>
@@ -337,6 +453,7 @@ const WorkshopCosts = () => {
                   placeholder="120.00"
                   value={costs.subcontratas}
                   onChange={(e) => handleInputChange('subcontratas', e.target.value)}
+                  disabled={hasExistingCalculation}
                 />
               </div>
 
@@ -350,6 +467,7 @@ const WorkshopCosts = () => {
                   placeholder="80.00"
                   value={costs.otros_costes}
                   onChange={(e) => handleInputChange('otros_costes', e.target.value)}
+                  disabled={hasExistingCalculation}
                 />
               </div>
 
@@ -361,6 +479,7 @@ const WorkshopCosts = () => {
                   value={costs.notas}
                   onChange={(e) => handleInputChange('notas', e.target.value)}
                   rows={3}
+                  disabled={hasExistingCalculation}
                 />
               </div>
             </CardContent>
@@ -415,23 +534,40 @@ const WorkshopCosts = () => {
               </div>
 
               <div className="pt-4 border-t">
-                <Button 
-                  onClick={handleCalculate}
-                  className="w-full bg-gradient-primary text-primary-foreground shadow-glow"
-                  disabled={calculateTotal() === 0 || isSaving}
-                >
-                  {isSaving ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Guardando datos...
-                    </>
-                  ) : (
-                    <>
-                      Calcular Rentabilidad
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </>
-                  )}
-                </Button>
+                {hasExistingCalculation ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-center space-x-2 text-green-600 bg-green-50 p-3 rounded-lg">
+                      <CheckCircle className="h-5 w-5" />
+                      <span className="font-medium">Rentabilidad ya calculada</span>
+                    </div>
+                    <Link to={`/app/resultados/${caseId}`}>
+                      <Button 
+                        className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                      >
+                        <Eye className="mr-2 h-4 w-4" />
+                        Ver Resultados
+                      </Button>
+                    </Link>
+                  </div>
+                ) : (
+                  <Button 
+                    onClick={handleCalculate}
+                    className="w-full bg-gradient-primary text-primary-foreground shadow-glow"
+                    disabled={calculateTotal() === 0 || isSaving}
+                  >
+                    {isSaving ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Guardando datos...
+                      </>
+                    ) : (
+                      <>
+                        Calcular Rentabilidad
+                        <ArrowRight className="ml-2 h-4 w-4" />
+                      </>
+                    )}
+                  </Button>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -454,7 +590,9 @@ const WorkshopCosts = () => {
             </CardContent>
           </Card>
         </div>
-      </div>
+        </div>
+      </>
+      )}
     </div>
   );
 };
