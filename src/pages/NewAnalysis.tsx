@@ -12,7 +12,7 @@ const NewAnalysis = () => {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const { toast } = useToast();
-  const { session } = useAuth();
+  const { session, profile, workshop } = useAuth();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -105,16 +105,32 @@ const NewAnalysis = () => {
       const pdfUrl = urlData.signedUrl;
       console.log('PDF subido exitosamente:', pdfUrl);
 
+      // Obtener workshop_id del perfil o del contexto, con fallback a consulta rápida
+      let workshopId: string | null = profile?.workshop_id ?? workshop?.id ?? null;
+      if (!workshopId) {
+        const { data: profData } = await supabase
+          .from('profiles')
+          .select('workshop_id')
+          .eq('id', session.user.id)
+          .single();
+        workshopId = (profData as any)?.workshop_id ?? null;
+      }
+
       // PASO 3: Crear registro en analysis con status 'processing'
+      const insertPayload: any = {
+        user_id: session.user.id,
+        status: 'processing',
+        pdf_filename: file.name,
+        pdf_url: pdfUrl,
+      };
+      // Incluir workshop_id explícitamente si lo tenemos; si no, el trigger lo rellenará
+      if (workshopId) {
+        insertPayload.workshop_id = workshopId;
+      }
+
       const { data: analysis, error: analysisError } = await supabase
         .from('analysis')
-        .insert({
-          user_id: session.user.id,
-          status: 'processing',
-          pdf_filename: file.name,
-          pdf_url: pdfUrl,
-          analysis_date: new Date().toISOString().split('T')[0] // Fecha actual en formato YYYY-MM-DD
-        })
+        .insert(insertPayload)
         .select('*')
         .single();
 
@@ -128,6 +144,17 @@ const NewAnalysis = () => {
       if (!analysis) {
         await supabase.storage.from('analysis-pdfs').remove([fileName]);
         throw new Error('No se pudo crear el análisis');
+      }
+
+      // Validar que workshop_id quedó asignado (por inserción directa o trigger)
+      if (!analysis.workshop_id) {
+        console.warn('workshop_id no se asignó en el insert; intentando actualizar desde perfil...');
+        if (workshopId) {
+          await supabase
+            .from('analysis')
+            .update({ workshop_id: workshopId })
+            .eq('id', analysis.id);
+        }
       }
 
       // PASO 4: Enviar archivo PDF a n8n para procesamiento (mantiene compatibilidad)

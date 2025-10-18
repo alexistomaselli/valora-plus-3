@@ -495,8 +495,41 @@ const Results = () => {
               <div>
                 <h4 className="font-semibold text-foreground mb-2">Puntos Fuertes:</h4>
                 <ul className="text-muted-foreground space-y-1 text-sm">
-                  <li>• M.O. Chapa: excelente margen del {formatPercentage((results.margen_detallado.mo_chapa.margen / results.margen_detallado.mo_chapa.ingresos) * 100)}</li>
-                  <li>• Materiales pintura: rentabilidad del {formatPercentage((results.margen_detallado.mat_pintura.margen / results.margen_detallado.mat_pintura.ingresos) * 100)}</li>
+                  {(() => {
+                    // Calcular rentabilidades para cada concepto
+                    const conceptos = [
+                      {
+                        nombre: "M.O. Chapa",
+                        descripcion: "excelente margen del",
+                        rentabilidad: results.margen_detallado.mo_chapa.ingresos > 0 
+                          ? (results.margen_detallado.mo_chapa.margen / results.margen_detallado.mo_chapa.ingresos) * 100 
+                          : 0
+                      },
+                      {
+                        nombre: "Materiales pintura",
+                        descripcion: "rentabilidad del",
+                        rentabilidad: results.margen_detallado.mat_pintura.ingresos > 0 
+                          ? (results.margen_detallado.mat_pintura.margen / results.margen_detallado.mat_pintura.ingresos) * 100 
+                          : 0
+                      },
+                      {
+                        nombre: "M.O. Pintura",
+                        descripcion: "margen del",
+                        rentabilidad: results.margen_detallado.mo_pintura.ingresos > 0 
+                          ? (results.margen_detallado.mo_pintura.margen / results.margen_detallado.mo_pintura.ingresos) * 100 
+                          : 0
+                      }
+                    ];
+
+                    // Ordenar por rentabilidad de mayor a menor
+                    const conceptosOrdenados = conceptos.sort((a, b) => b.rentabilidad - a.rentabilidad);
+
+                    return conceptosOrdenados.map((concepto, index) => (
+                      <li key={index}>
+                        • {concepto.nombre}: {concepto.descripcion} {formatPercentage(concepto.rentabilidad)}
+                      </li>
+                    ));
+                  })()}
                   <li>• Gestión eficiente de costes laborales</li>
                 </ul>
               </div>

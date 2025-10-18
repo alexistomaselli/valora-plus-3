@@ -1,29 +1,186 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { User, BarChart3, Calendar, FileText, TrendingUp, Crown, ArrowRight } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { User, BarChart3, Calendar, FileText, TrendingUp, Crown, ArrowRight, Loader2, Save, X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+
+interface Analysis {
+  id: string;
+  created_at: string;
+  vehicle_data: {
+    license_plate: string;
+    internal_reference: string;
+  }[];
+  insurance_amounts: {
+    total_with_iva: number;
+  }[];
+  workshop_costs: {
+    spare_parts_purchase_cost: number;
+    bodywork_actual_hours: number;
+    bodywork_hourly_cost: number;
+    painting_actual_hours: number;
+    painting_hourly_cost: number;
+    painting_consumables_cost: number;
+    subcontractor_costs: number;
+    other_costs: number;
+  }[];
+}
+
+interface AnalysisWithCalculations extends Analysis {
+  matricula: string;
+  referencia: string;
+  fecha: string;
+  margen_eur: number;
+  margen_pct: number;
+  status: string;
+}
 
 const MyAccount = () => {
-  const { user, profile, workshop, signOut, loading } = useAuth();
+  const { user, profile, workshop, loading, refreshProfile, refreshWorkshop } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   
+  const [userAnalyses, setUserAnalyses] = useState<AnalysisWithCalculations[]>([]);
+  const [analysesLoading, setAnalysesLoading] = useState(true);
+  const [analysesError, setAnalysesError] = useState<string | null>(null);
+  
+  // Estados para la edición del perfil
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [formData, setFormData] = useState({
+    full_name: '',
+    workshop_name: '',
+    workshop_email: '',
+    workshop_phone: '',
+    workshop_address: ''
+  });
 
-  
-  // Mock analysis history
-  const analyses = [
-    {
-      id: "demo-case-id",
-      referencia: "161832151335",
-      matricula: "5654LGR",
-      fecha: "2024-08-14",
-      margen_eur: 2060.71,
-      margen_pct: 44.37,
-      status: "completed"
-    },
-    // Additional mock data for demonstration
-  ];
+  // Load user's analyses
+  useEffect(() => {
+    const loadAnalyses = async () => {
+      if (!user?.id) return;
+      
+      try {
+        setAnalysesLoading(true);
+        setAnalysesError(null);
+
+        // Get analyses for the current user
+        const { data: analysisData, error: analysisError } = await supabase
+          .from('analysis')
+          .select(`
+            id,
+            created_at,
+            vehicle_data (
+              license_plate,
+              internal_reference
+            ),
+            insurance_amounts (
+              total_with_iva
+            ),
+            workshop_costs (
+              spare_parts_purchase_cost,
+              bodywork_actual_hours,
+              bodywork_hourly_cost,
+              painting_actual_hours,
+              painting_hourly_cost,
+              painting_consumables_cost,
+              subcontractor_costs,
+              other_costs
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (analysisError) {
+          console.error('Error loading analyses:', analysisError);
+          setAnalysesError('Error al cargar el historial de análisis');
+          return;
+        }
+
+        // Process the data to calculate margins and status
+        const processedAnalyses: AnalysisWithCalculations[] = (analysisData || []).map((analysis: Analysis) => {
+          const vehicleData = Array.isArray(analysis.vehicle_data) ? analysis.vehicle_data[0] : analysis.vehicle_data;
+          const insuranceAmounts = Array.isArray(analysis.insurance_amounts) ? analysis.insurance_amounts[0] : analysis.insurance_amounts;
+          const workshopCosts = Array.isArray(analysis.workshop_costs) ? analysis.workshop_costs[0] : analysis.workshop_costs;
+
+          // Calculate totals
+          const ingresos_totales = insuranceAmounts?.total_with_iva || 0;
+
+          // Calculate costs
+          const costes_repuestos = workshopCosts?.spare_parts_purchase_cost || 0;
+          const costes_mo_chapa = (workshopCosts?.bodywork_actual_hours || 0) * (workshopCosts?.bodywork_hourly_cost || 0);
+          const costes_mo_pintura = (workshopCosts?.painting_actual_hours || 0) * (workshopCosts?.painting_hourly_cost || 0);
+          const costes_mat_pintura = workshopCosts?.painting_consumables_cost || 0;
+          const costes_otros = (workshopCosts?.subcontractor_costs || 0) + (workshopCosts?.other_costs || 0);
+          const costes_totales = costes_repuestos + costes_mo_chapa + costes_mo_pintura + costes_mat_pintura + costes_otros;
+
+          // Determine status first
+          const hasInsuranceData = !!insuranceAmounts?.total_with_iva;
+          const hasWorkshopData = !!(workshopCosts?.spare_parts_purchase_cost ||
+            workshopCosts?.bodywork_actual_hours ||
+            workshopCosts?.painting_actual_hours ||
+            workshopCosts?.painting_consumables_cost ||
+            workshopCosts?.subcontractor_costs ||
+            workshopCosts?.other_costs);
+
+          let status = 'pending_verification';
+          if (hasInsuranceData && hasWorkshopData) {
+            status = 'completed';
+          } else if (hasInsuranceData && !hasWorkshopData) {
+            status = 'pending_costs';
+          }
+
+          // Calculate margins only if analysis is completed
+          let margen_eur = 0;
+          let margen_pct = 0;
+          if (status === 'completed') {
+            margen_eur = ingresos_totales - costes_totales;
+            margen_pct = ingresos_totales > 0 ? (margen_eur / ingresos_totales) * 100 : 0;
+          }
+
+          return {
+            ...analysis,
+            matricula: vehicleData?.license_plate || 'N/A',
+            referencia: vehicleData?.internal_reference || 'N/A',
+            fecha: analysis.created_at,
+            margen_eur,
+            margen_pct,
+            status
+          };
+        });
+
+        setUserAnalyses(processedAnalyses);
+      } catch (error) {
+        console.error('Error loading analyses:', error);
+        setAnalysesError('Error al cargar el historial de análisis');
+      } finally {
+        setAnalysesLoading(false);
+      }
+    };
+
+    loadAnalyses();
+  }, [user?.id]);
+
+  // Inicializar datos del formulario cuando cambie el perfil o workshop
+  useEffect(() => {
+    setFormData({
+      full_name: profile?.full_name || 
+                 user?.identities?.[0]?.identity_data?.full_name || 
+                 user?.user_metadata?.display_name || 
+                 user?.email?.split('@')[0] || 
+                 '',
+      workshop_name: workshop?.name || '',
+      workshop_email: workshop?.email || '',
+      workshop_phone: workshop?.phone || '',
+      workshop_address: workshop?.address || ''
+    });
+  }, [profile, workshop, user]);
 
   // Datos del usuario (dinámicos desde el usuario autenticado)
   const userData = {
@@ -37,305 +194,471 @@ const MyAccount = () => {
     created_at: profile?.created_at || new Date().toISOString(),
     monthlyUsage: 0, // TODO: Obtener del backend cuando esté implementado
     maxUsage: 3, // TODO: Obtener del plan del usuario
-    role: profile?.role || "admin_mechanic"
   };
 
+  // Funciones auxiliares
   const formatCurrency = (value: number) => {
-    return value.toLocaleString('es-ES', { 
-      minimumFractionDigits: 2, 
-      maximumFractionDigits: 2 
-    }) + ' €';
+    return new Intl.NumberFormat('es-ES', {
+      style: 'currency',
+      currency: 'EUR'
+    }).format(value);
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('es-ES', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
-  const averageMargin = analyses.length > 0 
-    ? analyses.reduce((sum, analysis) => sum + analysis.margen_pct, 0) / analyses.length 
+  // Funciones de edición del perfil
+  const handleEditClick = () => {
+    setIsEditing(true);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    // Restaurar valores originales
+    setFormData({
+      full_name: profile?.full_name || 
+                 user?.identities?.[0]?.identity_data?.full_name || 
+                 user?.user_metadata?.display_name || 
+                 user?.email?.split('@')[0] || 
+                 '',
+      workshop_name: workshop?.name || '',
+      workshop_email: workshop?.email || '',
+      workshop_phone: workshop?.phone || '',
+      workshop_address: workshop?.address || ''
+    });
+  };
+
+  const handleSaveChanges = async () => {
+    if (!user?.id) return;
+
+    setIsSaving(true);
+    try {
+      // Actualizar perfil si el nombre ha cambiado
+      if (formData.full_name !== (profile?.full_name || '')) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .update({ full_name: formData.full_name })
+          .eq('id', user.id);
+
+        if (profileError) throw profileError;
+      }
+
+      // Actualizar workshop si algún campo ha cambiado
+      if (workshop && (
+        formData.workshop_name !== workshop.name ||
+        formData.workshop_email !== (workshop.email || '') ||
+        formData.workshop_phone !== (workshop.phone || '') ||
+        formData.workshop_address !== (workshop.address || '')
+      )) {
+        const { error: workshopError } = await supabase
+          .from('workshops')
+          .update({ 
+            name: formData.workshop_name,
+            email: formData.workshop_email || null,
+            phone: formData.workshop_phone || null,
+            address: formData.workshop_address || null
+          })
+          .eq('id', workshop.id);
+
+        if (workshopError) throw workshopError;
+      }
+
+      // Refrescar datos
+      if (refreshProfile) await refreshProfile();
+      if (refreshWorkshop) await refreshWorkshop();
+
+      setIsEditing(false);
+      toast({
+        title: "Perfil actualizado",
+        description: "Los cambios se han guardado correctamente.",
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Error",
+        description: "No se pudieron guardar los cambios. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  // Cálculos dinámicos - solo incluir análisis completados
+  const completedAnalyses = userAnalyses.filter(analysis => analysis.status === 'completed');
+  const averageMargin = completedAnalyses.length > 0
+    ? completedAnalyses.reduce((sum, analysis) => sum + analysis.margen_pct, 0) / completedAnalyses.length
     : 0;
 
-  const totalMargin = analyses.reduce((sum, analysis) => sum + analysis.margen_eur, 0);
+  const totalMargin = completedAnalyses.reduce((sum, analysis) => sum + analysis.margen_eur, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   return (
-    <div className="max-w-6xl mx-auto">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Mi Cuenta</h1>
-        <p className="text-lg text-muted-foreground">
-          Gestiona tu perfil y revisa el historial de análisis
-        </p>
-      </div>
-      
-      {loading ? (
-        <div className="flex flex-col items-center justify-center py-12">
-          <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-muted-foreground">Cargando información del usuario...</p>
+    <div className="container mx-auto p-6 space-y-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground">Mi Cuenta</h1>
+          <p className="text-muted-foreground">Gestiona tu perfil y revisa tu actividad</p>
         </div>
-      ) : (
+      </div>
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* User profile */}
-        <div className="lg:col-span-1 space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <User className="h-5 w-5 text-primary" />
-                <span>Perfil del Usuario</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
+      <div className="grid gap-6 md:grid-cols-3 lg:grid-cols-4">
+        {/* Información Personal - Card más ancho */}
+        <Card className="md:col-span-2 lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              Información Personal
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Datos del Usuario */}
               <div>
-                <p className="text-sm text-muted-foreground">Nombre completo</p>
-                <p className="font-medium text-foreground">{userData.full_name}</p>
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <User className="h-4 w-4" />
+                  Datos del Usuario
+                </h3>
+                <div className="grid gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Email</Label>
+                    <p className="text-foreground">{userData.email}</p>
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Nombre</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formData.full_name}
+                        onChange={(e) => handleInputChange('full_name', e.target.value)}
+                        placeholder="Ingresa tu nombre completo"
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-foreground">{userData.full_name}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Miembro desde</Label>
+                    <p className="text-foreground">{formatDate(userData.created_at)}</p>
+                  </div>
+                </div>
               </div>
+
+              {/* Datos del Taller */}
               <div>
-                <p className="text-sm text-muted-foreground">Nombre del taller</p>
-                <p className="font-medium text-foreground">{userData.taller}</p>
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <Crown className="h-4 w-4" />
+                  Datos del Taller
+                </h3>
+                <div className="grid gap-4">
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Nombre del Taller</Label>
+                    {isEditing ? (
+                      <Input
+                        value={formData.workshop_name}
+                        onChange={(e) => handleInputChange('workshop_name', e.target.value)}
+                        placeholder="Nombre del taller"
+                        className="mt-1"
+                      />
+                    ) : (
+                      <p className="text-foreground">{userData.taller}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Email del Taller</Label>
+                    {isEditing ? (
+                      <>
+                        <Input
+                          value={formData.workshop_email}
+                          onChange={(e) => handleInputChange('workshop_email', e.target.value)}
+                          placeholder="contacto@taller.com"
+                          type="email"
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Email de contacto comercial del taller</p>
+                      </>
+                    ) : (
+                      <p className="text-foreground">{workshop?.email || "No especificado"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Teléfono del Taller</Label>
+                    {isEditing ? (
+                      <>
+                        <Input
+                          value={formData.workshop_phone}
+                          onChange={(e) => handleInputChange('workshop_phone', e.target.value)}
+                          placeholder="+34 123 456 789"
+                          type="tel"
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Teléfono de contacto del taller</p>
+                      </>
+                    ) : (
+                      <p className="text-foreground">{workshop?.phone || "No especificado"}</p>
+                    )}
+                  </div>
+                  <div>
+                    <Label className="text-sm font-medium text-muted-foreground">Dirección del Taller</Label>
+                    {isEditing ? (
+                      <>
+                        <Input
+                          value={formData.workshop_address}
+                          onChange={(e) => handleInputChange('workshop_address', e.target.value)}
+                          placeholder="Calle Principal 123, Ciudad"
+                          className="mt-1"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">Dirección física del taller</p>
+                      </>
+                    ) : (
+                      <p className="text-foreground">{workshop?.address || "No especificado"}</p>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium text-foreground">{userData.email}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Miembro desde</p>
-                <p className="font-medium text-foreground">{formatDate(userData.created_at)}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Rol</p>
-                <p className="font-medium text-foreground">{userData.role === 'admin' ? 'Administrador' : 'Taller'}</p>
-              </div>
-              <div className="space-y-2 pt-2">
-                <Button variant="outline" className="w-full">
+            </div>
+
+            {/* Botones de acción */}
+            <div className="flex gap-2 pt-4 border-t">
+              {isEditing ? (
+                <>
+                  <Button 
+                    variant="default" 
+                    size="sm"
+                    onClick={handleSaveChanges}
+                    disabled={isSaving}
+                    className="flex items-center gap-2"
+                  >
+                    {isSaving ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4" />
+                    )}
+                    {isSaving ? 'Guardando...' : 'Guardar'}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={handleCancelEdit}
+                    disabled={isSaving}
+                    className="flex items-center gap-2"
+                  >
+                    <X className="h-4 w-4" />
+                    Cancelar
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                  className="flex items-center gap-2"
+                >
+                  <User className="h-4 w-4" />
                   Editar Perfil
                 </Button>
-                <Button variant="destructive" className="w-full" onClick={async () => {
-                  await signOut();
-                  navigate('/login');
-                }}>
-                  Cerrar sesión
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Usage quota */}
-          <Card className={userData.monthlyUsage >= userData.maxUsage ? "border-warning" : "border-border"}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center space-x-2">
-                  <BarChart3 className="h-5 w-5 text-primary" />
-                  <span>Uso Mensual</span>
-                </div>
-                <Badge variant={userData.monthlyUsage >= userData.maxUsage ? "destructive" : "secondary"}>
-                  {userData.monthlyUsage}/{userData.maxUsage}
-                </Badge>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div>
-                  <div className="flex justify-between text-sm mb-2">
-                    <span>Análisis utilizados</span>
-                    <span>{userData.monthlyUsage} de {userData.maxUsage}</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div 
-                      className={`h-2 rounded-full transition-all duration-300 ${
-                        userData.monthlyUsage >= userData.maxUsage ? 'bg-destructive' : 'bg-gradient-primary'
-                      }`}
-                      style={{ width: `${(userData.monthlyUsage / userData.maxUsage) * 100}%` }}
-                    />
-                  </div>
-                </div>
-                
-                {userData.monthlyUsage >= userData.maxUsage ? (
-                  <div className="bg-warning-soft border border-warning/20 rounded-lg p-4">
-                    <div className="flex items-start space-x-3">
-                      <Crown className="h-5 w-5 text-warning mt-0.5" />
-                      <div>
-                        <p className="font-medium text-warning-foreground mb-1">
-                          Límite alcanzado
-                        </p>
-                        <p className="text-sm text-warning-foreground/80 mb-3">
-                          Has utilizado todos tus análisis gratuitos este mes. 
-                          Actualiza a un plan premium para continuar.
-                        </p>
-                        <Button size="sm" className="bg-gradient-primary text-primary-foreground">
-                          Ver Planes Premium
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="text-center">
-                    <p className="text-sm text-muted-foreground mb-3">
-                      Te quedan {userData.maxUsage - userData.monthlyUsage} análisis gratuitos este mes
-                    </p>
-                    <Link to="/app/nuevo">
-                      <Button size="sm" className="bg-gradient-primary text-primary-foreground shadow-glow">
-                        Nuevo Análisis
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Analysis history and stats */}
-        <div className="lg:col-span-2 space-y-6">
-          {/* Stats cards */}
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="bg-gradient-card border-border/50">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-primary/10 rounded">
-                    <FileText className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Análisis</p>
-                    <p className="text-xl font-bold text-foreground">{analyses.length}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-card border-border/50">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-success/10 rounded">
-                    <TrendingUp className="h-5 w-5 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Margen Promedio</p>
-                    <p className="text-xl font-bold text-foreground">
-                      {averageMargin.toFixed(1)}%
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-card border-border/50">
-              <CardContent className="p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 bg-warning/10 rounded">
-                    <BarChart3 className="h-5 w-5 text-warning" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">Margen Total</p>
-                    <p className="text-xl font-bold text-foreground">
-                      {formatCurrency(totalMargin)}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-gradient-card border-border/50">
-              <CardContent className="p-4">
-                <div className="space-y-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-2 bg-primary/10 rounded">
-                      <BarChart3 className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-muted-foreground">Coste Hora</p>
-                      <p className="text-xl font-bold text-foreground">26.09€/h</p>
-                    </div>
-                  </div>
-                  <Button size="sm" variant="outline" className="w-full">
-                    Calcular
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Analysis history */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Calendar className="h-5 w-5 text-primary" />
-                <span>Historial de Análisis</span>
-              </CardTitle>
-              <CardDescription>
-                Revisa todos los análisis de rentabilidad realizados
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {analyses.length > 0 ? (
-                <div className="space-y-4">
-                  {analyses.map((analysis) => (
-                    <div key={analysis.id} className="border rounded-lg p-4 hover:bg-muted/30 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center space-x-4 mb-2">
-                            <h4 className="font-medium text-foreground">
-                              {analysis.matricula}
-                            </h4>
-                            <Badge variant="secondary" className="text-xs">
-                              Ref: {analysis.referencia}
-                            </Badge>
-                            <span className="text-sm text-muted-foreground">
-                              {formatDate(analysis.fecha)}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-6">
-                            <div>
-                              <span className="text-sm text-muted-foreground">Margen: </span>
-                              <span className="font-medium text-success">
-                                {formatCurrency(analysis.margen_eur)}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-sm text-muted-foreground">Rentabilidad: </span>
-                              <span className="font-medium text-foreground">
-                                {analysis.margen_pct.toFixed(2)}%
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          <Link to={`/app/resultados/${analysis.id}`}>
-                            <Button variant="outline" size="sm">
-                              Ver Detalles
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-12">
-                  <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-foreground mb-2">
-                    No tienes análisis aún
-                  </h3>
-                  <p className="text-muted-foreground mb-6">
-                    Empieza tu primer análisis de rentabilidad para ver el historial aquí
-                  </p>
-                  <Link to="/app/nuevo">
-                    <Button className="bg-gradient-primary text-primary-foreground shadow-glow">
-                      Crear Primer Análisis
-                      <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </Link>
-                </div>
               )}
-            </CardContent>
-          </Card>
-        </div>
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => {
+                  supabase.auth.signOut();
+                  navigate('/');
+                }}
+              >
+                Cerrar Sesión
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Uso Mensual - A la derecha */}
+        <Card className="md:col-span-1 lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5" />
+              Uso Mensual
+            </CardTitle>
+            <CardDescription>
+              {userData.monthlyUsage} de {userData.maxUsage} análisis utilizados
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>Progreso</span>
+                <span>{Math.round((userData.monthlyUsage / userData.maxUsage) * 100)}%</span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2">
+                <div 
+                  className="bg-primary h-2 rounded-full transition-all duration-300" 
+                  style={{ width: `${(userData.monthlyUsage / userData.maxUsage) * 100}%` }}
+                ></div>
+              </div>
+            </div>
+            <div className="mt-4 p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
+              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
+                <Crown className="h-4 w-4" />
+                <span className="text-sm font-medium">Plan Premium</span>
+              </div>
+              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
+                Análisis ilimitados y funciones avanzadas
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
-      )}
+
+      {/* Estadísticas de Análisis */}
+      <div className="grid gap-6 md:grid-cols-3">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Total Análisis</CardTitle>
+            <FileText className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{userAnalyses.length}</div>
+            <p className="text-xs text-muted-foreground">
+              Análisis completados este mes
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Margen Promedio</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{averageMargin.toFixed(1)}%</div>
+            <p className="text-xs text-muted-foreground">
+              Rentabilidad promedio
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Margen Total</CardTitle>
+            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{formatCurrency(totalMargin)}</div>
+            <p className="text-xs text-muted-foreground">
+              Beneficio total generado
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Historial de Análisis */}
+      <div className="space-y-6">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Calendar className="h-5 w-5" />
+              Historial de Análisis
+            </CardTitle>
+            <CardDescription>
+              Revisa todos tus análisis de rentabilidad anteriores
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {analysesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Cargando análisis...</span>
+              </div>
+            ) : userAnalyses.length > 0 ? (
+              <div className="space-y-4">
+                {userAnalyses.map((analysis) => (
+                  <div key={analysis.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium">Matrícula: {analysis.matricula}</p>
+                        <Badge variant={analysis.status === 'completed' ? 'outline' : 'secondary'} className={analysis.status === 'completed' ? 'border-green-500 text-green-700 bg-green-50' : ''}>
+                          {analysis.status === 'completed' ? 'Completado' : 
+                           analysis.status === 'pending_costs' ? 'Pendiente Costos' :
+                           analysis.status === 'pending_verification' ? 'Pendiente Verificación' :
+                           'Procesando'}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Referencia: {analysis.referencia} • {formatDate(analysis.fecha)}
+                      </p>
+                      {analysis.status === 'completed' && (
+                        <p className="text-sm">
+                          Margen: {formatCurrency(analysis.margen_eur)} ({analysis.margen_pct.toFixed(1)}%)
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {analysis.status === 'completed' ? (
+                        <Link to={`/app/resultados/${analysis.id}`}>
+                          <Button variant="outline" size="sm">
+                            Ver Resultados
+                          </Button>
+                        </Link>
+                      ) : analysis.status === 'pending_costs' ? (
+                        <Link to={`/app/costes/${analysis.id}`}>
+                          <Button variant="default" size="sm">
+                            Completar Costos
+                          </Button>
+                        </Link>
+                      ) : analysis.status === 'pending_verification' ? (
+                        <Link to={`/app/verificacion/${analysis.id}`}>
+                          <Button variant="default" size="sm">
+                            Verificar Datos
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button variant="outline" size="sm" disabled>
+                          {analysis.status === 'processing' ? 'Procesando...' : 'Error'}
+                        </Button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-foreground mb-2">
+                  No tienes análisis aún
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  Empieza tu primer análisis de rentabilidad para ver el historial aquí
+                </p>
+                <Link to="/app/nuevo">
+                  <Button className="bg-gradient-primary text-primary-foreground shadow-glow">
+                    Crear Primer Análisis
+                    <ArrowRight className="ml-2 h-4 w-4" />
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };

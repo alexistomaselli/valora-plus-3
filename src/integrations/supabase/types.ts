@@ -44,6 +44,7 @@ export type Database = {
           status: string
           updated_at: string | null
           user_id: string
+          workshop_id: string | null
           valuation_date: string | null
         }
         Insert: {
@@ -55,6 +56,7 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id: string
+          workshop_id?: string | null
           valuation_date?: string | null
         }
         Update: {
@@ -66,6 +68,7 @@ export type Database = {
           status?: string
           updated_at?: string | null
           user_id?: string
+          workshop_id?: string | null
           valuation_date?: string | null
         }
         Relationships: [
@@ -74,6 +77,13 @@ export type Database = {
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "analysis_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
             referencedColumns: ["id"]
           },
         ]

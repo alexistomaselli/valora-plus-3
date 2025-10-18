@@ -13,8 +13,15 @@ import WorkshopCosts from "./pages/WorkshopCosts";
 import Results from "./pages/Results";
 import MyAccount from "./pages/MyAccount";
 import NotFound from "./pages/NotFound";
+import AdminLogin from "./pages/AdminLogin";
+import AdminLayout from "./pages/AdminLayout";
+import AdminDashboard from "./pages/AdminDashboard";
+import AdminWorkshops from "./pages/AdminWorkshops";
+import AdminAnalyses from "./pages/AdminAnalyses";
+import AdminWorkshopAnalyses from "./pages/AdminWorkshopAnalyses";
 import { AuthProvider } from "./contexts/AuthContext";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AdminProtectedRoute } from "./components/AdminProtectedRoute";
 import Unauthorized from "./pages/Unauthorized";
 
 const queryClient = new QueryClient();
@@ -31,6 +38,18 @@ const App = () => (
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin" element={
+              <AdminProtectedRoute>
+                <AdminLayout />
+              </AdminProtectedRoute>
+            }>
+              <Route index element={<Navigate to="/admin/dashboard" replace />} />
+              <Route path="dashboard" element={<AdminDashboard />} />
+              <Route path="workshops" element={<AdminWorkshops />} />
+              <Route path="workshops/:id/analisis" element={<AdminWorkshopAnalyses />} />
+              <Route path="analisis" element={<AdminAnalyses />} />
+            </Route>
             <Route path="/app" element={
               <ProtectedRoute>
                 <AppLayout />

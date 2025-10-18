@@ -98,7 +98,10 @@ export function UserAccountDropdown({
         <DropdownMenuSeparator />
         
         <DropdownMenuItem asChild>
-          <Link to="/app/micuenta" className="flex items-center w-full">
+          <Link 
+            to={userData.role === 'admin' ? '/admin/dashboard' : '/app/micuenta'} 
+            className="flex items-center w-full"
+          >
             <User className="mr-2 h-4 w-4" />
             <span>Mi Cuenta</span>
           </Link>

@@ -8,17 +8,17 @@ import { UserAccountDropdown } from "@/components/UserAccountDropdown";
 import heroImage from "@/assets/hero-analytics.jpg";
 
 const Index = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
+          <Link to={profile?.role === 'admin' ? '/admin/dashboard' : '/'} className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
             <Calculator className="h-8 w-8 text-primary" />
             <span className="text-xl font-bold text-foreground">Valora Plus Analytics</span>
-          </div>
+          </Link>
           <div className="flex items-center space-x-4">
             {user ? (
               // Mostrar dropdown cuando el usuario está logueado

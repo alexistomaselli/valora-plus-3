@@ -9,7 +9,7 @@ interface AuthContextType {
   profile: Profile | null;
   workshop: Workshop | null;
   loading: boolean;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (email: string, password: string, options?: { suppressSuccessToast?: boolean }) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
   refreshWorkshop: () => Promise<void>;
@@ -206,7 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Función de inicio de sesión
-  const signIn = async (email: string, password: string): Promise<{ success: boolean; error?: string }> => {
+  const signIn = async (email: string, password: string, options?: { suppressSuccessToast?: boolean }): Promise<{ success: boolean; error?: string }> => {
     try {
       setLoading(true);
       // console.log('🔐 AUTH: Starting signIn process');
@@ -230,10 +230,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data.session) {
         // console.log('🔐 AUTH: SignIn successful, session created');
         // NO establecer setLoading(false) aquí - dejar que onAuthStateChange lo maneje
-        toast({
-          title: "Inicio de sesión exitoso",
-          description: "Bienvenido de vuelta",
-        });
+        if (!options?.suppressSuccessToast) {
+          toast({
+            title: "Inicio de sesión exitoso",
+            description: "Bienvenido de vuelta",
+          });
+        }
         return { success: true };
       }
 
@@ -279,20 +281,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
        }
     };
     
+    // Intentar logout de Supabase de forma no bloqueante
     try {
-      // console.log('🔴 LOGOUT: Attempting Supabase signOut with 3 second timeout');
+      // console.log('🔴 LOGOUT: Attempting Supabase signOut');
       
-      // Crear promesa con timeout de 3 segundos
+      // Intentar logout de Supabase con timeout más generoso
       const signOutPromise = supabase.auth.signOut();
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Timeout after 3 seconds')), 3000)
+        setTimeout(() => reject(new Error('Supabase logout timeout')), 15000)
       );
       
-      const result = await Promise.race([signOutPromise, timeoutPromise]);
+      await Promise.race([signOutPromise, timeoutPromise]);
       // console.log('🔴 LOGOUT: Supabase signOut completed successfully');
       
     } catch (error: any) {
       // console.warn('🔴 LOGOUT: Supabase signOut failed or timed out:', error.message);
+      // Continuar con logout local sin mostrar error al usuario
+      // El logout local siempre debe funcionar independientemente de Supabase
     }
     
     // SIEMPRE limpiar el estado local, sin importar si Supabase funcionó

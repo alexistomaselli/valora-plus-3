@@ -68,8 +68,8 @@ CREATE TRIGGER trigger_analysis_updated_at
     EXECUTE FUNCTION update_analysis_updated_at();
 
 -- Create storage bucket for PDFs if it doesn't exist
-INSERT INTO storage.buckets (id, name, public)
-VALUES ('analysis-pdfs', 'analysis-pdfs', false)
+INSERT INTO storage.buckets (id, name)
+VALUES ('analysis-pdfs', 'analysis-pdfs')
 ON CONFLICT (id) DO NOTHING;
 
 -- Create storage policies for PDFs
