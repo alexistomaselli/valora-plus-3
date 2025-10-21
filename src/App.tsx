@@ -12,6 +12,9 @@ import Verification from "./pages/Verification";
 import WorkshopCosts from "./pages/WorkshopCosts";
 import Results from "./pages/Results";
 import MyAccount from "./pages/MyAccount";
+import PaymentSuccess from "./pages/PaymentSuccess";
+import PaymentCancel from "./pages/PaymentCancel";
+import PaymentTest from "./pages/PaymentTest";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
 import AdminLayout from "./pages/AdminLayout";
@@ -62,6 +65,31 @@ const App = () => (
               <Route path="resultados/:caseId" element={<Results />} />
               <Route path="micuenta" element={<MyAccount />} />
             </Route>
+            <Route path="/payment/success" element={
+              <ProtectedRoute>
+                <PaymentSuccess />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment-success" element={
+              <ProtectedRoute>
+                <PaymentSuccess />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment/cancel" element={
+              <ProtectedRoute>
+                <PaymentCancel />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment-cancel" element={
+              <ProtectedRoute>
+                <PaymentCancel />
+              </ProtectedRoute>
+            } />
+            <Route path="/payment-test" element={
+              <ProtectedRoute>
+                <PaymentTest />
+              </ProtectedRoute>
+            } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

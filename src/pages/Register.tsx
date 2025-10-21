@@ -127,17 +127,21 @@ const Register = () => {
     setIsLoading(true);
     
     try {
-      // Registrar usuario con Supabase
+      // PASO 1: Cerrar cualquier sesión activa para evitar conflictos
+      await supabase.auth.signOut();
+      
+      // PASO 2: Registrar usuario SIN auto-confirmación para evitar login automático
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-           data: {
-             workshop_name: tallerName,
-             role: 'admin_mechanic',
-             full_name: fullName
-           }
-         }
+          data: {
+            workshop_name: tallerName,
+            role: 'admin_mechanic',
+            full_name: fullName
+          },
+          emailRedirectTo: undefined // Evitar auto-confirmación
+        }
       });
 
       if (error) {
@@ -145,16 +149,33 @@ const Register = () => {
       }
 
       if (data.user) {
-        // Crear perfil del taller
-        await createWorkshopAndProfile(data.user.id);
+        console.log('Usuario creado, ID:', data.user.id);
         
-        toast({
-          title: "¡Cuenta creada exitosamente!",
-          description: "Revisa tu email para confirmar tu cuenta y luego podrás iniciar sesión.",
-        });
-        
-        // Redirigir al login
-        navigate('/login');
+        // PASO 3: Crear workshop
+        try {
+          const workshopId = await createWorkshop();
+          
+          // PASO 4: Actualizar perfil con workshop_id
+          await updateProfileWithWorkshop(data.user.id, workshopId);
+          
+          // PASO 5: Mostrar mensaje de verificación de email
+          toast({
+            title: "¡Registro completado!",
+            description: "Tu cuenta y taller se han creado correctamente. Revisa tu email para verificar tu cuenta antes de iniciar sesión.",
+          });
+          navigate('/login');
+          
+        } catch (workshopError: any) {
+          console.error('Error en configuración del taller:', workshopError);
+          
+          toast({
+            title: "Error en configuración del taller",
+            description: `Tu cuenta se creó pero hubo un problema configurando el taller: ${workshopError.message}. Verifica tu email y contacta con soporte.`,
+            variant: "destructive"
+          });
+          
+          navigate('/login');
+        }
       }
     } catch (error: any) {
       console.error('Error en registro:', error);
@@ -168,47 +189,65 @@ const Register = () => {
     }
   };
 
-  const createWorkshopAndProfile = async (userId: string) => {
+  const createWorkshop = async () => {
     try {
-      // 1. Crear el workshop con información básica
-      const { data: workshop, error: workshopError } = await supabase
+      console.log('Creando workshop con datos:', { name: tallerName, email: workshopEmail || email });
+      const { data: workshopData, error: workshopError } = await supabase
         .from('workshops')
         .insert({
-          name: tallerName, // Nombre del taller
-          email: null, // Se completará desde el panel de cuenta
-          phone: null, // Se completará desde el panel de cuenta
-          address: null // Se completará desde el panel de cuenta
+          name: tallerName,
+          email: workshopEmail || email,
+          phone: phone || null,
+          address: address || null
         })
-        .select()
-        .single();
+        .select();
 
       if (workshopError) {
         console.error('Error creating workshop:', workshopError);
-        throw workshopError;
+        throw new Error(`Error creando taller: ${workshopError.message}`);
       }
 
-      // 2. Actualizar el perfil del usuario con el workshop_id
+      if (!workshopData || workshopData.length === 0) {
+        throw new Error('No se pudo crear el taller');
+      }
+
+      const workshop = workshopData[0];
+      console.log('Workshop creado exitosamente:', workshop.id);
+      return workshop.id;
+
+    } catch (error: any) {
+      console.error('Error in createWorkshop:', error);
+      throw error;
+    }
+  };
+
+  const updateProfileWithWorkshop = async (userId: string, workshopId: string) => {
+    try {
+      console.log('Actualizando perfil con workshop_id:', workshopId);
+      
+      // Usar UPSERT para manejar tanto UPDATE como INSERT
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-          full_name: fullName, // Usar el nombre del usuario
-          workshop_id: workshop.id,
-          phone: null // Se completará desde el panel de cuenta
-        })
-        .eq('id', userId);
+        .upsert({
+          id: userId,
+          email: email,
+          full_name: fullName,
+          role: 'admin_mechanic',
+          workshop_id: workshopId
+        }, {
+          onConflict: 'id'
+        });
 
       if (profileError) {
-        console.error('Error updating profile:', profileError);
-        throw profileError;
+        console.error('Error upserting profile:', profileError);
+        throw new Error(`Error actualizando perfil: ${profileError.message}`);
       }
 
-    } catch (error) {
-      console.error('Error in createWorkshopAndProfile:', error);
-      toast({
-        title: "Advertencia",
-        description: "Tu cuenta se creó correctamente, pero hubo un problema configurando el taller. Contacta con soporte.",
-        variant: "destructive"
-      });
+      console.log('Profile actualizado exitosamente con workshop_id:', workshopId);
+
+    } catch (error: any) {
+      console.error('Error in updateProfileWithWorkshop:', error);
+      throw error;
     }
   };
 

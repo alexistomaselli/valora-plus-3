@@ -7,8 +7,9 @@ import { User, BarChart3, Calendar, FileText, TrendingUp, Crown, ArrowRight, Loa
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
+import { useMonthlyUsage } from "@/hooks/use-monthly-usage";
 
 interface Analysis {
   id: string;
@@ -45,6 +46,7 @@ const MyAccount = () => {
   const { user, profile, workshop, loading, refreshProfile, refreshWorkshop } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { usage: monthlyUsage, loading: usageLoading, refreshUsage } = useMonthlyUsage();
   
   const [userAnalyses, setUserAnalyses] = useState<AnalysisWithCalculations[]>([]);
   const [analysesLoading, setAnalysesLoading] = useState(true);
@@ -192,8 +194,13 @@ const MyAccount = () => {
                "Usuario",
     taller: workshop?.name || "Taller no especificado",
     created_at: profile?.created_at || new Date().toISOString(),
-    monthlyUsage: 0, // TODO: Obtener del backend cuando esté implementado
-    maxUsage: 3, // TODO: Obtener del plan del usuario
+    monthlyUsage: monthlyUsage?.freeAnalysesUsed || 0,
+    maxUsage: monthlyUsage?.freeAnalysesLimit || 3,
+    totalAnalyses: monthlyUsage?.totalAnalyses || 0,
+    remainingFreeAnalyses: monthlyUsage?.remainingFreeAnalyses || 0,
+    paidAnalyses: monthlyUsage?.paidAnalysesCount || 0,
+    totalAmountDue: monthlyUsage?.totalAmountDue || 0,
+    paymentStatus: monthlyUsage?.paymentStatus || 'pending'
   };
 
   // Funciones auxiliares
@@ -497,32 +504,57 @@ const MyAccount = () => {
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
               Uso Mensual
+              {usageLoading && <Loader2 className="h-4 w-4 animate-spin" />}
             </CardTitle>
             <CardDescription>
-              {userData.monthlyUsage} de {userData.maxUsage} análisis utilizados
+              {userData.monthlyUsage} de {userData.maxUsage} análisis gratuitos utilizados
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              <div className="flex justify-between text-sm">
-                <span>Progreso</span>
-                <span>{Math.round((userData.monthlyUsage / userData.maxUsage) * 100)}%</span>
+            <div className="space-y-4">
+              {/* Progreso de análisis gratuitos */}
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Análisis gratuitos</span>
+                  <span>{Math.round((userData.monthlyUsage / userData.maxUsage) * 100)}%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div 
+                    className="bg-primary h-2 rounded-full transition-all duration-300" 
+                    style={{ width: `${(userData.monthlyUsage / userData.maxUsage) * 100}%` }}
+                  ></div>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {userData.remainingFreeAnalyses} análisis gratuitos restantes
+                </div>
               </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div 
-                  className="bg-primary h-2 rounded-full transition-all duration-300" 
-                  style={{ width: `${(userData.monthlyUsage / userData.maxUsage) * 100}%` }}
-                ></div>
+
+              {/* Información adicional */}
+              {userData.totalAnalyses > userData.monthlyUsage && (
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span>Análisis de pago</span>
+                    <span>{userData.paidAnalyses}</span>
+                  </div>
+                  {userData.totalAmountDue > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span>Importe pendiente</span>
+                      <span className="font-medium">€{userData.totalAmountDue.toFixed(2)}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Estado del plan */}
+              <div className="mt-4 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200">
+                  <Crown className="h-4 w-4" />
+                  <span className="text-sm font-medium">Plan Básico</span>
+                </div>
+                <p className="text-xs text-blue-700 dark:text-blue-300 mt-1">
+                  {userData.maxUsage} análisis gratuitos por mes
+                </p>
               </div>
-            </div>
-            <div className="mt-4 p-3 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20 rounded-lg border border-amber-200 dark:border-amber-800">
-              <div className="flex items-center gap-2 text-amber-800 dark:text-amber-200">
-                <Crown className="h-4 w-4" />
-                <span className="text-sm font-medium">Plan Premium</span>
-              </div>
-              <p className="text-xs text-amber-700 dark:text-amber-300 mt-1">
-                Análisis ilimitados y funciones avanzadas
-              </p>
             </div>
           </CardContent>
         </Card>

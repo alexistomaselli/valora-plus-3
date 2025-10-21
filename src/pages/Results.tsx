@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Download, Mail, ArrowLeft, TrendingUp, TrendingDown, Minus, FileText, Share2, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 interface MargenDetallado {
   ingresos: number;

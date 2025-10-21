@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, CheckCircle2, ArrowRight, ArrowLeft, Edit3, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 const Verification = () => {
   const { caseId } = useParams<{ caseId: string }>();

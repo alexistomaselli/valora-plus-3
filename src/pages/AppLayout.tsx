@@ -16,12 +16,6 @@ const AppLayout = () => {
     }
   }, [session, loading, navigate]);
   
-  // Datos de uso que se pasarán al dropdown
-  const usageData = {
-    monthlyUsage: 0, // TODO: Obtener del backend cuando esté implementado
-    maxUsage: 3 // TODO: Obtener del plan del usuario
-  };
-
   return (
     <div className="min-h-screen bg-background">
       {/* App Header */}
@@ -33,10 +27,7 @@ const AppLayout = () => {
           </Link>
           
           <div className="flex items-center">
-            <UserAccountDropdown 
-              monthlyUsage={usageData.monthlyUsage} 
-              maxUsage={usageData.maxUsage} 
-            />
+            <UserAccountDropdown />
           </div>
         </div>
       </header>

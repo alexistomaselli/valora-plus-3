@@ -1,18 +1,25 @@
 import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Upload, FileText, AlertCircle, CheckCircle2, ArrowRight } from "lucide-react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Upload, FileText, AlertCircle, CheckCircle2, ArrowRight, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMonthlyUsage } from "@/hooks/use-monthly-usage";
+import { useSystemSettings } from "@/hooks/use-system-settings";
 
 const NewAnalysis = () => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const { toast } = useToast();
   const { session, profile, workshop } = useAuth();
+  const { usage: monthlyUsage, loading: usageLoading, canCreateAnalysis, getNextAnalysisCost, refreshUsage } = useMonthlyUsage();
+  const { settings: systemSettings } = useSystemSettings();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -62,7 +69,64 @@ const NewAnalysis = () => {
     }
 
     setUploadedFile(file);
-    uploadFile(file);
+
+    // Verificar si el usuario puede crear un análisis gratuito
+    if (canCreateAnalysis()) {
+      uploadFile(file);
+    } else {
+      // Mostrar modal de pago
+      setShowPaymentModal(true);
+    }
+  };
+
+  const processPayment = async () => {
+    setIsProcessingPayment(true);
+    
+    try {
+      const cost = await getNextAnalysisCost();
+      console.log('Costo obtenido:', cost, 'Tipo:', typeof cost);
+      
+      if (typeof cost !== 'number' || cost <= 0) {
+        console.error('Costo inválido:', cost);
+        throw new Error('No se pudo obtener el costo del análisis');
+      }
+      
+      // Obtener el mes actual para los metadatos
+      const currentDate = new Date();
+      const analysisMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+      
+      // Crear sesión de pago con Stripe
+      console.log('Creating payment session with cost:', cost);
+      const { data, error } = await supabase.functions.invoke('payment-session', {
+        body: {
+          amount: cost, // Enviar en euros, la función Edge se encarga de convertir a centavos
+          currency: 'eur',
+          description: `Análisis adicional - ${analysisMonth}`,
+          analysis_month: analysisMonth
+        }
+      });
+
+      if (error) {
+        throw new Error(`Error creando sesión de pago: ${error.message}`);
+      }
+
+      if (data?.url) {
+        // Redirigir a Stripe Checkout
+        window.location.href = data.url;
+      } else {
+        throw new Error('No se recibió URL de pago');
+      }
+
+    } catch (error) {
+      console.error('Error procesando pago:', error);
+      toast({
+        title: "Error en el pago",
+        description: error instanceof Error ? error.message : "No se pudo procesar el pago.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsProcessingPayment(false);
+    }
   };
 
   const uploadFile = async (file: File) => {
@@ -405,6 +469,23 @@ const NewAnalysis = () => {
     setUploadedFile(null);
   };
 
+  const handleSelectFileClick = () => {
+    // Verificar si el usuario puede crear un análisis gratuito
+    if (canCreateAnalysis()) {
+      // Si puede, abrir el selector de archivos normalmente
+      document.getElementById('file-input')?.click();
+    } else {
+      // Si no puede, mostrar directamente el modal de pago
+      setShowPaymentModal(true);
+    }
+  };
+
+  const handleCancelPayment = () => {
+    // Cerrar el modal y limpiar cualquier archivo que pueda estar cargado
+    setShowPaymentModal(false);
+    setUploadedFile(null);
+  };
+
   return (
     <div className="max-w-2xl mx-auto">
       <div className="text-center mb-8">
@@ -459,7 +540,7 @@ const NewAnalysis = () => {
                 <Button 
                   variant="outline" 
                   className="mt-4"
-                  onClick={() => document.getElementById('file-input')?.click()}
+                  onClick={handleSelectFileClick}
                 >
                   Seleccionar Archivo
                 </Button>
@@ -568,6 +649,85 @@ const NewAnalysis = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Modal de Pago */}
+      <Dialog open={showPaymentModal} onOpenChange={(open) => !open && handleCancelPayment()}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center space-x-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              <span>Análisis Adicional</span>
+            </DialogTitle>
+            <DialogDescription>
+              Has alcanzado el límite de análisis gratuitos para este mes. Para continuar, necesitas realizar un pago.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {monthlyUsage && (
+              <div className="bg-muted/50 rounded-lg p-4">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                   <div>
+                     <span className="text-muted-foreground">Análisis realizados:</span>
+                     <p className="font-medium">{monthlyUsage.totalAnalyses}</p>
+                   </div>
+                   <div>
+                      <span className="text-muted-foreground">Análisis gratuitos:</span>
+                      <p className="font-medium">{monthlyUsage.freeAnalysesUsed} / {monthlyUsage.freeAnalysesLimit}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Costo del análisis:</span>
+                      <p className="font-medium text-primary">
+                        {monthlyUsage && monthlyUsage.remainingFreeAnalyses > 0 
+                          ? 0 
+                          : systemSettings?.additionalAnalysisPrice || 25}€
+                      </p>
+                    </div>
+                   <div>
+                     <span className="text-muted-foreground">Total pendiente:</span>
+                     <p className="font-medium">{monthlyUsage.totalAmountDue}€</p>
+                   </div>
+                 </div>
+              </div>
+            )}
+            
+            <div className="text-sm text-muted-foreground">
+              <p>• El pago se procesará de forma segura a través de Stripe</p>
+              <p>• Podrás continuar inmediatamente después del pago</p>
+              <p>• Recibirás una factura por email</p>
+            </div>
+          </div>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            <Button 
+              variant="outline" 
+              onClick={handleCancelPayment}
+              disabled={isProcessingPayment}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={processPayment}
+              disabled={isProcessingPayment}
+              className="bg-gradient-primary text-primary-foreground"
+            >
+              {isProcessingPayment ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                  Procesando...
+                </>
+              ) : (
+                 <>
+                   <CreditCard className="mr-2 h-4 w-4" />
+                   Pagar {monthlyUsage && monthlyUsage.remainingFreeAnalyses > 0 
+                     ? 0 
+                     : systemSettings?.additionalAnalysisPrice || 25}€
+                 </>
+               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

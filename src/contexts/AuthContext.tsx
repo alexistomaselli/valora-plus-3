@@ -219,9 +219,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         // console.log('🔐 AUTH: SignIn error:', error.message);
         setLoading(false); // Solo establecer loading false en caso de error
+        // Traducir mensajes de error comunes
+        let errorMessage = error.message;
+        if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Email no confirmado. Por favor, revisa tu bandeja de entrada y confirma tu correo electrónico.";
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Credenciales de acceso inválidas. Verifica tu email y contraseña.";
+        } else if (error.message.includes("Email/Password combination is incorrect")) {
+          errorMessage = "La combinación de email y contraseña es incorrecta.";
+        } else if (error.message.includes("User not found")) {
+          errorMessage = "Usuario no encontrado.";
+        } else if (error.message.includes("Too many requests")) {
+          errorMessage = "Demasiados intentos. Por favor, inténtalo más tarde.";
+        }
+        
         toast({
           title: "Error de autenticación",
-          description: error.message,
+          description: errorMessage,
           variant: "destructive",
         });
         return { success: false, error: error.message };

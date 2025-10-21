@@ -324,6 +324,167 @@ export type Database = {
         }
         Relationships: []
       }
+      system_settings: {
+        Row: {
+          id: string
+          setting_key: string
+          setting_value: Json
+          description: string | null
+          created_at: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          id?: string
+          setting_key: string
+          setting_value: Json
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          id?: string
+          setting_key?: string
+          setting_value?: Json
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      user_monthly_usage: {
+        Row: {
+          id: string
+          user_id: string
+          year: number
+          month: number
+          analyses_count: number
+          free_analyses_used: number
+          paid_analyses_count: number
+          total_amount_due: number
+          payment_status: string
+          stripe_payment_intent_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          year: number
+          month: number
+          analyses_count?: number
+          free_analyses_used?: number
+          paid_analyses_count?: number
+          total_amount_due?: number
+          payment_status?: string
+          stripe_payment_intent_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          year?: number
+          month?: number
+          analyses_count?: number
+          free_analyses_used?: number
+          paid_analyses_count?: number
+          total_amount_due?: number
+          payment_status?: string
+          stripe_payment_intent_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_monthly_usage_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      payments: {
+        Row: {
+          id: string
+          workshop_id: string
+          user_id: string
+          stripe_payment_intent_id: string | null
+          stripe_session_id: string | null
+          stripe_customer_id: string | null
+          amount_cents: number
+          currency: string
+          status: string
+          analysis_month: string
+          analyses_purchased: number
+          unit_price_cents: number
+          payment_method: string | null
+          stripe_fee_cents: number | null
+          net_amount_cents: number | null
+          description: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          workshop_id: string
+          user_id: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          stripe_customer_id?: string | null
+          amount_cents: number
+          currency?: string
+          status?: string
+          analysis_month: string
+          analyses_purchased?: number
+          unit_price_cents?: number
+          payment_method?: string | null
+          stripe_fee_cents?: number | null
+          net_amount_cents?: number | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          workshop_id?: string
+          user_id?: string
+          stripe_payment_intent_id?: string | null
+          stripe_session_id?: string | null
+          stripe_customer_id?: string | null
+          amount_cents?: number
+          currency?: string
+          status?: string
+          analysis_month?: string
+          analyses_purchased?: number
+          unit_price_cents?: number
+          payment_method?: string | null
+          stripe_fee_cents?: number | null
+          net_amount_cents?: number | null
+          description?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_workshop_id_fkey"
+            columns: ["workshop_id"]
+            isOneToOne: false
+            referencedRelation: "workshops"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -344,6 +505,59 @@ export type Database = {
       is_admin_user: {
         Args: Record<PropertyKey, never>
         Returns: boolean
+      }
+      get_system_setting: {
+        Args: { setting_name: string }
+        Returns: Json
+      }
+      update_system_setting: {
+        Args: { setting_name: string; new_value: Json }
+        Returns: undefined
+      }
+      get_or_create_monthly_usage: {
+        Args: { year?: number; month?: number }
+        Returns: Json
+      }
+      get_current_monthly_usage: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      create_payment_record: {
+        Args: {
+          p_workshop_id: string
+          p_stripe_payment_intent_id?: string
+          p_stripe_session_id?: string
+          p_amount_cents: number
+          p_currency?: string
+          p_analysis_month: string
+          p_description?: string
+        }
+        Returns: string
+      }
+      update_payment_status: {
+        Args: {
+          p_stripe_session_id: string
+          p_status: string
+          p_stripe_payment_intent_id?: string
+          p_payment_method?: string
+          p_stripe_fee_cents?: number
+        }
+        Returns: undefined
+      }
+      get_workshop_payment_history: {
+        Args: {
+          p_workshop_id: string
+          p_limit?: number
+          p_offset?: number
+        }
+        Returns: Json
+      }
+      get_payment_statistics: {
+        Args: {
+          p_start_date?: string
+          p_end_date?: string
+        }
+        Returns: Json
       }
     }
     Enums: {

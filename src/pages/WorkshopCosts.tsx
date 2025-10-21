@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { ArrowRight, ArrowLeft, Calculator, AlertCircle, DollarSign, Loader2, CheckCircle, Eye } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/lib/supabase";
 
 const WorkshopCosts = () => {
   const { caseId } = useParams<{ caseId: string }>();

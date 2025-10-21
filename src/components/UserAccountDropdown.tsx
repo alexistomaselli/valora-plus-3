@@ -1,6 +1,7 @@
 import { User, LogOut, Settings, BarChart3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useMonthlyUsage } from "@/hooks/use-monthly-usage";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,16 +14,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface UserAccountDropdownProps {
-  monthlyUsage?: number;
-  maxUsage?: number;
-}
-
-export function UserAccountDropdown({ 
-  monthlyUsage = 0, 
-  maxUsage = 3 
-}: UserAccountDropdownProps) {
+export function UserAccountDropdown() {
   const { user, profile, workshop, signOut } = useAuth();
+  const { usage, loading: usageLoading } = useMonthlyUsage();
 
   // Datos del usuario desde el contexto de autenticación
   const userData = {
@@ -85,12 +79,22 @@ export function UserAccountDropdown({
             
             <div className="flex items-center justify-between pt-2">
               <span className="text-xs text-muted-foreground">Uso mensual:</span>
-              <Badge 
-                variant={monthlyUsage >= maxUsage ? "destructive" : "secondary"}
-                className="text-xs"
-              >
-                {monthlyUsage}/{maxUsage} análisis
-              </Badge>
+              {usageLoading ? (
+                <Badge variant="secondary" className="text-xs">
+                  Cargando...
+                </Badge>
+              ) : usage ? (
+                <Badge 
+                  variant={usage.remainingFreeAnalyses === 0 ? "destructive" : "secondary"}
+                  className="text-xs"
+                >
+                  {usage.totalAnalyses}/{usage.freeAnalysesLimit} análisis
+                </Badge>
+              ) : (
+                <Badge variant="secondary" className="text-xs">
+                  0/3 análisis
+                </Badge>
+              )}
             </div>
           </div>
         </DropdownMenuLabel>

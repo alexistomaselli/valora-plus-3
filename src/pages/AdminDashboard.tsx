@@ -1,5 +1,9 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { 
   Users, 
   Building2, 
@@ -7,9 +11,14 @@ import {
   TrendingUp, 
   Activity,
   AlertCircle,
-  Clock
+  Clock,
+  Settings,
+  Save,
+  Loader2
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { useSystemSettings } from "@/hooks/use-system-settings";
+import { useToast } from "@/hooks/use-toast";
 
 // Función para formatear fechas sin problemas de zona horaria
 const formatDateWithoutTimezone = (dateString: string): string => {
@@ -65,10 +74,40 @@ const AdminDashboard = () => {
   });
   const [recentAnalysisList, setRecentAnalysisList] = useState<RecentAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Sistema de configuraciones
+  const { 
+    settings, 
+    loading: settingsLoading, 
+    updateMonthlyLimit,
+    updateAnalysisPrice,
+    updateBillingEnabled,
+    updateStripeEnabled
+  } = useSystemSettings();
+  const { toast } = useToast();
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [localSettings, setLocalSettings] = useState({
+    monthlyFreeAnalysesLimit: 3,
+    additionalAnalysisPrice: 25.00,
+    billingEnabled: true,
+    stripeEnabled: false
+  });
 
   useEffect(() => {
     fetchDashboardStats();
   }, []);
+
+  // Sincronizar configuraciones locales con las del servidor
+  useEffect(() => {
+    if (settings) {
+      setLocalSettings({
+        monthlyFreeAnalysesLimit: settings.monthlyFreeAnalysesLimit || 3,
+        additionalAnalysisPrice: settings.additionalAnalysisPrice || 25.00,
+        billingEnabled: settings.billingEnabled || false,
+        stripeEnabled: settings.stripeEnabled || false
+      });
+    }
+  }, [settings]);
 
   const fetchDashboardStats = async () => {
     try {
@@ -240,6 +279,57 @@ const AdminDashboard = () => {
     }
   };
 
+  // Funciones para manejar configuraciones
+  const handleSettingChange = (key: keyof typeof localSettings, value: any) => {
+    setLocalSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const saveSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const promises = [];
+      
+      if (localSettings.monthlyFreeAnalysesLimit !== settings?.monthlyFreeAnalysesLimit) {
+        promises.push(updateMonthlyLimit(localSettings.monthlyFreeAnalysesLimit));
+      }
+      
+      if (localSettings.additionalAnalysisPrice !== settings?.additionalAnalysisPrice) {
+        promises.push(updateAnalysisPrice(localSettings.additionalAnalysisPrice));
+      }
+      
+      if (localSettings.billingEnabled !== settings?.billingEnabled) {
+        promises.push(updateBillingEnabled(localSettings.billingEnabled));
+      }
+      
+      if (localSettings.stripeEnabled !== settings?.stripeEnabled) {
+        promises.push(updateStripeEnabled(localSettings.stripeEnabled));
+      }
+
+      const results = await Promise.all(promises);
+      
+      if (results.every(result => result)) {
+        toast({
+          title: "Configuraciones guardadas",
+          description: "Las configuraciones del sistema se han actualizado correctamente.",
+        });
+      } else {
+        throw new Error("Algunos cambios no se pudieron guardar");
+      }
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Error al guardar",
+        description: "No se pudieron guardar las configuraciones. Inténtalo de nuevo.",
+        variant: "destructive",
+      });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   const statCards = [
     {
       title: "Talleres Activos",
@@ -325,6 +415,120 @@ const AdminDashboard = () => {
           );
         })}
       </div>
+
+      {/* Configuración del Sistema */}
+      <Card className="hover:shadow-lg transition-shadow" data-config-section>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          <div>
+            <CardTitle className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              Configuración del Sistema
+            </CardTitle>
+            <CardDescription>
+              Gestiona las configuraciones globales de la plataforma
+            </CardDescription>
+          </div>
+          <Button 
+            onClick={saveSettings} 
+            disabled={savingSettings || settingsLoading}
+            className="flex items-center gap-2"
+          >
+            {savingSettings ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4" />
+            )}
+            {savingSettings ? 'Guardando...' : 'Guardar'}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Configuraciones de Análisis */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-gray-900">Análisis y Facturación</h3>
+              
+              <div className="space-y-2">
+                <Label htmlFor="monthlyLimit">Análisis gratuitos por mes</Label>
+                <Input
+                  id="monthlyLimit"
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={localSettings.monthlyFreeAnalysesLimit}
+                  onChange={(e) => handleSettingChange('monthlyFreeAnalysesLimit', parseInt(e.target.value) || 0)}
+                  disabled={settingsLoading}
+                />
+                <p className="text-xs text-gray-500">
+                  Número de análisis gratuitos que cada usuario puede realizar por mes
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="analysisPrice">Precio por análisis adicional (€)</Label>
+                <Input
+                  id="analysisPrice"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={localSettings.additionalAnalysisPrice}
+                  onChange={(e) => handleSettingChange('additionalAnalysisPrice', parseFloat(e.target.value) || 0)}
+                  disabled={settingsLoading}
+                />
+                <p className="text-xs text-gray-500">
+                  Precio que se cobrará por cada análisis que exceda el límite gratuito
+                </p>
+              </div>
+            </div>
+
+            {/* Configuraciones de Sistema */}
+            <div className="space-y-4">
+              <h3 className="font-medium text-gray-900">Sistema de Pagos</h3>
+              
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="billingEnabled">Facturación habilitada</Label>
+                  <p className="text-xs text-gray-500">
+                    Activar el sistema de facturación y cobros
+                  </p>
+                </div>
+                <Switch
+                  id="billingEnabled"
+                  checked={localSettings.billingEnabled}
+                  onCheckedChange={(checked) => handleSettingChange('billingEnabled', checked)}
+                  disabled={settingsLoading}
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label htmlFor="stripeEnabled">Stripe habilitado</Label>
+                  <p className="text-xs text-gray-500">
+                    Activar la integración con Stripe para pagos
+                  </p>
+                </div>
+                <Switch
+                  id="stripeEnabled"
+                  checked={localSettings.stripeEnabled}
+                  onCheckedChange={(checked) => handleSettingChange('stripeEnabled', checked)}
+                  disabled={settingsLoading}
+                />
+              </div>
+
+              {localSettings.stripeEnabled && (
+                <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-center gap-2 text-blue-800">
+                    <AlertCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">Configuración de Stripe</span>
+                  </div>
+                  <p className="text-xs text-blue-700 mt-1">
+                    Asegúrate de configurar las claves de API de Stripe en las variables de entorno
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Análisis Recientes y Acciones Rápidas - En dos columnas */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -454,6 +658,24 @@ const AdminDashboard = () => {
                   <div>
                     <h3 className="font-medium text-gray-900">Reportes</h3>
                     <p className="text-sm text-gray-500">Generar informes y estadísticas</p>
+                  </div>
+                </div>
+              </button>
+              <button 
+                onClick={() => {
+                  // Scroll to configuration section
+                  const configSection = document.querySelector('[data-config-section]');
+                  if (configSection) {
+                    configSection.scrollIntoView({ behavior: 'smooth' });
+                  }
+                }}
+                className="w-full p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors text-left"
+              >
+                <div className="flex items-center gap-3">
+                  <Settings className="h-6 w-6 text-gray-600" />
+                  <div>
+                    <h3 className="font-medium text-gray-900">Configuración</h3>
+                    <p className="text-sm text-gray-500">Gestionar configuraciones del sistema</p>
                   </div>
                 </div>
               </button>
