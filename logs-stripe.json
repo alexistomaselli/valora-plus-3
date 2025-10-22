@@ -1,0 +1,802 @@
+[
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "63493f8a-60ba-4c63-8b30-749c2c2740ad",
+    "level": "log",
+    "timestamp": 1761081591043000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "44461a70-960f-4e90-a1f2-b79e65cc1b9b",
+    "level": "log",
+    "timestamp": 1761081591033000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "9f60536d-cd0a-4838-87dd-1ce504ffafa2",
+    "level": "log",
+    "timestamp": 1761081591027000
+  },
+  {
+    "event_message": "📊 Update result: false\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "69fed061-7efd-411d-b518-55e6d841a17f",
+    "level": "info",
+    "timestamp": 1761081391753000
+  },
+  {
+    "event_message": "✅ Payment completed successfully: pi_3SKmuuBSteUh6kku1z2NQcx9 Session ID: cs_test_a1dulgm2qo7hhhfNSSsBnybeQecxehpEBWAAulgbtZkNIe655o7tausYFk Customer ID: null\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "61c9d04f-e864-4baa-aaeb-e30fcd4eb9da",
+    "level": "info",
+    "timestamp": 1761081391753000
+  },
+  {
+    "event_message": "Payment intent succeeded: pi_3SKmuuBSteUh6kku1z2NQcx9\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "690279a9-cb77-402a-b432-570c43144344",
+    "level": "info",
+    "timestamp": 1761081391745000
+  },
+  {
+    "event_message": "Charge succeeded: pi_3SKmuuBSteUh6kku1z2NQcx9 Customer ID: null\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "847f5939-205c-42a0-a3d3-68bee0162326",
+    "level": "info",
+    "timestamp": 1761081391720000
+  },
+  {
+    "event_message": "📤 Calling update_payment_status with params: {\n  stripe_payment_intent_id_param: \"pi_3SKmuuBSteUh6kku1z2NQcx9\",\n  new_status: \"succeeded\",\n  payment_method_param: \"card\",\n  stripe_session_id_param: \"cs_test_a1dulgm2qo7hhhfNSSsBnybeQecxehpEBWAAulgbtZkNIe655o7tausYFk\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "c3d84688-2749-486e-9486-c87d91f9e848",
+    "level": "info",
+    "timestamp": 1761081391124000
+  },
+  {
+    "event_message": "⚠️ Final customer ID is still null - proceeding without it\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "efb2e0b4-ec00-4e8e-8e3f-a6d15875a60b",
+    "level": "info",
+    "timestamp": 1761081391124000
+  },
+  {
+    "event_message": "📨 Processing webhook event: charge.succeeded\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "44b9c18b-fc4e-41e5-bedb-0afe974645f4",
+    "level": "info",
+    "timestamp": 1761081391052000
+  },
+  {
+    "event_message": "Processing charge.succeeded: {\n  payment_intent: \"pi_3SKmuuBSteUh6kku1z2NQcx9\",\n  customer: null,\n  charge_id: \"ch_3SKmuuBSteUh6kku1kwDayFc\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "bc2e3b94-c1d2-434a-b06b-5fb3927eb2a9",
+    "level": "info",
+    "timestamp": 1761081391052000
+  },
+  {
+    "event_message": "📨 Processing webhook event: payment_intent.succeeded\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "5f432274-f5a1-4443-a7fe-a770c16b787f",
+    "level": "info",
+    "timestamp": 1761081391049000
+  },
+  {
+    "event_message": "✅ Webhook signature verified successfully\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "a3af1670-4acf-4e94-ba65-f9e6ccca329e",
+    "level": "info",
+    "timestamp": 1761081391047000
+  },
+  {
+    "event_message": "✅ Webhook signature verified successfully\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "96dae323-1299-4738-8ce0-509d96549a8c",
+    "level": "info",
+    "timestamp": 1761081391046000
+  },
+  {
+    "event_message": "📥 Request body length: 3748\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "ce04cd07-420e-4b37-bc1c-8a3eb39ceb7c",
+    "level": "info",
+    "timestamp": 1761081391045000
+  },
+  {
+    "event_message": "🔍 Webhook request received: {\n  method: \"POST\",\n  hasSignature: true,\n  hasSecret: true,\n  contentType: \"application/json; charset=utf-8\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "29b56e7e-817c-41f6-aa54-0dce0b0cfe3f",
+    "level": "info",
+    "timestamp": 1761081391044000
+  },
+  {
+    "event_message": "📥 Request body length: 2255\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "f2fd81ad-11e6-4213-ba27-c7c2bfcaffaa",
+    "level": "info",
+    "timestamp": 1761081391044000
+  },
+  {
+    "event_message": "🔍 Webhook request received: {\n  method: \"POST\",\n  hasSignature: true,\n  hasSecret: true,\n  contentType: \"application/json; charset=utf-8\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "ab23546d-6ed4-43bc-9050-c59de0d1de58",
+    "level": "info",
+    "timestamp": 1761081391043000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "3e85cc2f-13f9-4e60-841f-427c2de4a89c",
+    "level": "info",
+    "timestamp": 1761081391039000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "ca2edd3e-6f47-40c5-abe6-ff2c244d4bcd",
+    "level": "info",
+    "timestamp": 1761081391037000
+  },
+  {
+    "event_message": "⚠️ No customer ID in session - this might be a guest checkout\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "9e1922fc-313a-4207-9250-c02ac39ca1df",
+    "level": "info",
+    "timestamp": 1761081391033000
+  },
+  {
+    "event_message": "🎯 Processing checkout.session.completed: {\n  payment_intent: \"pi_3SKmuuBSteUh6kku1z2NQcx9\",\n  session_id: \"cs_test_a1dulgm2qo7hhhfNSSsBnybeQecxehpEBWAAulgbtZkNIe655o7tausYFk\",\n  customer: null,\n  metadata: {\n    description: \"Análisis adicional - 2025-10\",\n    user_id: \"d951e996-a58f-4410-85c9-46525e06d325\",\n    workshop_id: \"a662c5e9-e14e-4acf-966c-2bb5795e3867\"\n  }\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "de57b1bc-a8de-4dd5-a53e-33245e1e3aa1",
+    "level": "info",
+    "timestamp": 1761081391033000
+  },
+  {
+    "event_message": "📨 Processing webhook event: checkout.session.completed\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "aa718883-3a55-4f7b-bedc-2e36801c6ed5",
+    "level": "info",
+    "timestamp": 1761081391032000
+  },
+  {
+    "event_message": "✅ Webhook signature verified successfully\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "7a42229e-1e76-4b31-ade5-7acf110220ad",
+    "level": "info",
+    "timestamp": 1761081391029000
+  },
+  {
+    "event_message": "📥 Request body length: 4039\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "e0448072-950a-4830-9017-f3a3839cd5e8",
+    "level": "info",
+    "timestamp": 1761081391027000
+  },
+  {
+    "event_message": "🔍 Webhook request received: {\n  method: \"POST\",\n  hasSignature: true,\n  hasSecret: true,\n  contentType: \"application/json; charset=utf-8\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "708d00ac-f38c-47d7-82a4-9c88ad62053b",
+    "level": "info",
+    "timestamp": 1761081391026000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "1d8ffdec-a434-4040-b918-db90ee70caec",
+    "level": "info",
+    "timestamp": 1761081391022000
+  },
+  {
+    "event_message": "booted (time: 52ms)",
+    "event_type": "Boot",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "cc866847-5eac-416b-9880-12a2aeb42a53",
+    "level": "log",
+    "timestamp": 1761081391016000
+  },
+  {
+    "event_message": "booted (time: 46ms)",
+    "event_type": "Boot",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "c06f3e22-0dac-4046-8c45-317a2c439b8f",
+    "level": "log",
+    "timestamp": 1761081391015000
+  },
+  {
+    "event_message": "booted (time: 40ms)",
+    "event_type": "Boot",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "c48448f2-ec0e-40c3-960b-ee0a5f12397a",
+    "level": "log",
+    "timestamp": 1761081391005000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "5c271c54-fd44-4c40-a964-f4d7f00fa024",
+    "level": "log",
+    "timestamp": 1761081157673000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "06b1fe8e-df1d-4e6b-be7e-54864a9b1b58",
+    "level": "log",
+    "timestamp": 1761081157673000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "d837cb71-3a29-498a-8ef3-b9be6c94955e",
+    "level": "log",
+    "timestamp": 1761081157651000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "c64a10a5-5495-4145-a5dc-831e5f7f7c7d",
+    "level": "log",
+    "timestamp": 1761081157630000
+  },
+  {
+    "event_message": "📊 Update result: false\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "4230874b-cc9a-4a01-bf32-ab2b48e95726",
+    "level": "info",
+    "timestamp": 1761080958509000
+  },
+  {
+    "event_message": "✅ Payment completed successfully: pi_3SKmnvBSteUh6kku2ExA7qBi Session ID: cs_test_a1o7opvxMalhcTrEfYiUgGKwZ7mezYL1kxXJXVmjU5tXrOS6hPrvIkMusG Customer ID: null\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "289e0cb4-6a3a-4727-b2fa-5727464972ba",
+    "level": "info",
+    "timestamp": 1761080958509000
+  },
+  {
+    "event_message": "Charge succeeded: pi_3SKmnvBSteUh6kku2ExA7qBi Customer ID: null\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "4030a3cf-f2ac-478f-9103-e43b3febe3a0",
+    "level": "info",
+    "timestamp": 1761080958362000
+  },
+  {
+    "event_message": "Payment intent succeeded: pi_3SKmnvBSteUh6kku2ExA7qBi\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "261b6ab3-f09e-455b-95b2-87696b257f4b",
+    "level": "info",
+    "timestamp": 1761080958344000
+  },
+  {
+    "event_message": "📤 Calling update_payment_status with params: {\n  stripe_payment_intent_id_param: \"pi_3SKmnvBSteUh6kku2ExA7qBi\",\n  new_status: \"succeeded\",\n  payment_method_param: \"card\",\n  stripe_session_id_param: \"cs_test_a1o7opvxMalhcTrEfYiUgGKwZ7mezYL1kxXJXVmjU5tXrOS6hPrvIkMusG\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "bf9b9d0f-7e6c-4662-bdfb-a378ec4619d8",
+    "level": "info",
+    "timestamp": 1761080957788000
+  },
+  {
+    "event_message": "⚠️ Final customer ID is still null - proceeding without it\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "fbf82b15-83b6-406b-81f7-2a890c410c5d",
+    "level": "info",
+    "timestamp": 1761080957788000
+  },
+  {
+    "event_message": "📨 Processing webhook event: charge.succeeded\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "7721d9f4-20a1-4ed1-aade-e199a6d6bd2c",
+    "level": "info",
+    "timestamp": 1761080957680000
+  },
+  {
+    "event_message": "Processing charge.succeeded: {\n  payment_intent: \"pi_3SKmnvBSteUh6kku2ExA7qBi\",\n  customer: null,\n  charge_id: \"ch_3SKmnvBSteUh6kku2fdy5FlU\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "66dca51b-4f72-466e-96fd-f407626d749c",
+    "level": "info",
+    "timestamp": 1761080957680000
+  },
+  {
+    "event_message": "✅ Webhook signature verified successfully\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "9e231d0e-f281-46b1-b05b-f9f524177959",
+    "level": "info",
+    "timestamp": 1761080957676000
+  },
+  {
+    "event_message": "🔍 Webhook request received: {\n  method: \"POST\",\n  hasSignature: true,\n  hasSecret: true,\n  contentType: \"application/json; charset=utf-8\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "c1123a19-3000-4230-b703-14856e90214a",
+    "level": "info",
+    "timestamp": 1761080957674000
+  },
+  {
+    "event_message": "📥 Request body length: 3748\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "acd023ce-3d50-401e-b5ce-88561ea22169",
+    "level": "info",
+    "timestamp": 1761080957674000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "d9783756-28ad-4e17-a704-42e77a897521",
+    "level": "info",
+    "timestamp": 1761080957670000
+  },
+  {
+    "event_message": "🎯 Processing checkout.session.completed: {\n  payment_intent: \"pi_3SKmnvBSteUh6kku2ExA7qBi\",\n  session_id: \"cs_test_a1o7opvxMalhcTrEfYiUgGKwZ7mezYL1kxXJXVmjU5tXrOS6hPrvIkMusG\",\n  customer: null,\n  metadata: {\n    description: \"Análisis adicional - 2025-10\",\n    user_id: \"11c7daf8-8a5e-4537-b6d1-3972c0abbd05\",\n    workshop_id: \"820d58b0-252f-4278-879b-f80b76ee0080\"\n  }\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "874e0480-7ad5-43d1-9bf5-d38d1a253367",
+    "level": "info",
+    "timestamp": 1761080957656000
+  },
+  {
+    "event_message": "📨 Processing webhook event: checkout.session.completed\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "5aba36ca-3765-4937-b3b8-7ea591f089da",
+    "level": "info",
+    "timestamp": 1761080957656000
+  },
+  {
+    "event_message": "⚠️ No customer ID in session - this might be a guest checkout\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "04c54307-f7ed-4223-a226-312261a124cd",
+    "level": "info",
+    "timestamp": 1761080957656000
+  },
+  {
+    "event_message": "booted (time: 37ms)",
+    "event_type": "Boot",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "8b1120b5-8067-45d4-b0eb-801c3d978a74",
+    "level": "log",
+    "timestamp": 1761080957653000
+  },
+  {
+    "event_message": "✅ Webhook signature verified successfully\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "ff03d291-2f68-4b2d-8524-7c3f9ffe504c",
+    "level": "info",
+    "timestamp": 1761080957653000
+  },
+  {
+    "event_message": "🔍 Webhook request received: {\n  method: \"POST\",\n  hasSignature: true,\n  hasSecret: true,\n  contentType: \"application/json; charset=utf-8\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "a3363844-7ede-46dd-8833-f3f02aeed983",
+    "level": "info",
+    "timestamp": 1761080957651000
+  },
+  {
+    "event_message": "📥 Request body length: 4039\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "eaf970c0-775e-4086-909c-4a6871f44123",
+    "level": "info",
+    "timestamp": 1761080957651000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "2dd66b08-510f-4b63-8111-e15f5822ae00",
+    "level": "info",
+    "timestamp": 1761080957646000
+  },
+  {
+    "event_message": "📨 Processing webhook event: payment_intent.succeeded\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "3b71376d-ca22-4acd-ab3b-855be23b30ac",
+    "level": "info",
+    "timestamp": 1761080957634000
+  },
+  {
+    "event_message": "✅ Webhook signature verified successfully\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "3bd371b3-2d62-4026-8d26-5c012a9f7835",
+    "level": "info",
+    "timestamp": 1761080957631000
+  },
+  {
+    "event_message": "booted (time: 38ms)",
+    "event_type": "Boot",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "57907de4-320f-4556-b87e-42ca37eed205",
+    "level": "log",
+    "timestamp": 1761080957630000
+  },
+  {
+    "event_message": "📥 Request body length: 2255\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "cab27e94-9c33-470b-ac0d-bc8401361d6c",
+    "level": "info",
+    "timestamp": 1761080957629000
+  },
+  {
+    "event_message": "🔍 Webhook request received: {\n  method: \"POST\",\n  hasSignature: true,\n  hasSecret: true,\n  contentType: \"application/json; charset=utf-8\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "cf79399d-0e1d-44f2-baec-bb98b52bf6df",
+    "level": "info",
+    "timestamp": 1761080957628000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "30f8e5a1-977c-4ad0-a301-e9e6d8af25cf",
+    "level": "info",
+    "timestamp": 1761080957624000
+  },
+  {
+    "event_message": "booted (time: 38ms)",
+    "event_type": "Boot",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "42f66612-6bc1-4606-bbc0-ad3b22c4dea0",
+    "level": "log",
+    "timestamp": 1761080957608000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "8186b600-7882-4c3a-9802-72956dd3b72a",
+    "level": "log",
+    "timestamp": 1761079602473000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "d91560c3-98a8-4973-a517-aa55def802cf",
+    "level": "log",
+    "timestamp": 1761079549281000
+  },
+  {
+    "event_message": "shutdown",
+    "event_type": "Shutdown",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "785330da-caff-490f-a1cd-adeb8730e060",
+    "level": "log",
+    "timestamp": 1761079543002000
+  },
+  {
+    "event_message": "🔍 Error details being returned: {\n  error: \"Webhook handler failed\",\n  message: \"Unknown error\",\n  details: \"[object Object]\",\n  timestamp: \"2025-10-21T20:43:23.133Z\",\n  event_type: \"payment_intent.succeeded\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "097a5340-dcb1-4011-8231-ad0ea70bf5ea",
+    "level": "error",
+    "timestamp": 1761079403134000
+  },
+  {
+    "event_message": "🔍 Error details being returned: {\n  error: \"Webhook handler failed\",\n  message: \"Unknown error\",\n  details: \"[object Object]\",\n  timestamp: \"2025-10-21T20:43:23.133Z\",\n  event_type: \"payment_intent.succeeded\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "f1b346c1-e640-48e5-a99e-17ae4026140e",
+    "level": "error",
+    "timestamp": 1761079403134000
+  },
+  {
+    "event_message": "Error updating payment status: {\n  code: \"PGRST203\",\n  details: null,\n  hint: \"Try renaming the parameters or the function itself in the database so function overloading can be resolved\",\n  message: \"Could not choose the best candidate function between: public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text, stripe_customer_id_param => text)\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "8598bcf0-33ff-4405-af1e-8ca5af783ae4",
+    "level": "error",
+    "timestamp": 1761079403133000
+  },
+  {
+    "event_message": "❌ Webhook processing error: {\n  code: \"PGRST203\",\n  details: null,\n  hint: \"Try renaming the parameters or the function itself in the database so function overloading can be resolved\",\n  message: \"Could not choose the best candidate function between: public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text, stripe_customer_id_param => text)\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "40dace7b-e2c4-407b-a0bc-4de185085881",
+    "level": "error",
+    "timestamp": 1761079403133000
+  },
+  {
+    "event_message": "❌ Webhook processing error: {\n  code: \"PGRST203\",\n  details: null,\n  hint: \"Try renaming the parameters or the function itself in the database so function overloading can be resolved\",\n  message: \"Could not choose the best candidate function between: public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text, stripe_customer_id_param => text)\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "451370c6-29d1-4ad5-b52e-afd2e1682b50",
+    "level": "error",
+    "timestamp": 1761079403133000
+  },
+  {
+    "event_message": "Error updating payment status: {\n  code: \"PGRST203\",\n  details: null,\n  hint: \"Try renaming the parameters or the function itself in the database so function overloading can be resolved\",\n  message: \"Could not choose the best candidate function between: public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text, stripe_customer_id_param => text)\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "41dd6485-daba-44dc-b8e5-54a5c707bb98",
+    "level": "error",
+    "timestamp": 1761079403133000
+  },
+  {
+    "event_message": "📨 Processing webhook event: payment_intent.succeeded\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "f2f55361-4194-4add-9b4a-e6680bc11487",
+    "level": "info",
+    "timestamp": 1761079402471000
+  },
+  {
+    "event_message": "✅ Webhook signature verified successfully\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "3a584078-1bcf-415f-9d6c-a30d8d9e84cd",
+    "level": "info",
+    "timestamp": 1761079402468000
+  },
+  {
+    "event_message": "🔍 Webhook request received: {\n  method: \"POST\",\n  hasSignature: true,\n  hasSecret: true,\n  contentType: \"application/json; charset=utf-8\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "cf55b06b-e3a3-417b-a2ef-af1f04d4c992",
+    "level": "info",
+    "timestamp": 1761079402466000
+  },
+  {
+    "event_message": "📥 Request body length: 2255\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "7a6da1d8-43e8-4f28-a78c-2116bea7c0e1",
+    "level": "info",
+    "timestamp": 1761079402466000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "23310d0a-8cac-4000-be6f-ab431264b898",
+    "level": "info",
+    "timestamp": 1761079402461000
+  },
+  {
+    "event_message": "booted (time: 38ms)",
+    "event_type": "Boot",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "f42c2006-7f50-4b62-a8dd-66fadb575aff",
+    "level": "log",
+    "timestamp": 1761079402446000
+  },
+  {
+    "event_message": "Customer ID: null\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "6843f471-226d-4c4b-9a2e-31d5cf2d1c42",
+    "level": "error",
+    "timestamp": 1761079350008000
+  },
+  {
+    "event_message": "❌ Webhook processing error: {\n  code: \"PGRST203\",\n  details: null,\n  hint: \"Try renaming the parameters or the function itself in the database so function overloading can be resolved\",\n  message: \"Could not choose the best candidate function between: public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text, stripe_customer_id_param => text)\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "a7eccfbb-a1cf-47aa-9473-ccd7abe87466",
+    "level": "error",
+    "timestamp": 1761079350008000
+  },
+  {
+    "event_message": "Error updating payment status: {\n  code: \"PGRST203\",\n  details: null,\n  hint: \"Try renaming the parameters or the function itself in the database so function overloading can be resolved\",\n  message: \"Could not choose the best candidate function between: public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text, stripe_customer_id_param => text)\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "9d37b873-ff73-4a6e-bcb6-932aac00c2b9",
+    "level": "error",
+    "timestamp": 1761079350008000
+  },
+  {
+    "event_message": "🔍 Error details being returned: {\n  error: \"Webhook handler failed\",\n  message: \"Unknown error\",\n  details: \"[object Object]\",\n  timestamp: \"2025-10-21T20:42:30.008Z\",\n  event_type: \"charge.succeeded\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "3e883b8a-c7c7-461b-b219-3a2d1129fc3b",
+    "level": "error",
+    "timestamp": 1761079350008000
+  },
+  {
+    "event_message": "Processing charge.succeeded: {\n  payment_intent: \"pi_3SKlSgBSteUh6kku0NxzdGG3\",\n  customer: null,\n  charge_id: \"ch_3SKlSgBSteUh6kku0S97vIFV\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "22df67c8-999f-4c97-ad13-5affde5196db",
+    "level": "info",
+    "timestamp": 1761079349289000
+  },
+  {
+    "event_message": "📨 Processing webhook event: charge.succeeded\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "2db243c5-bc1b-4ab8-86c2-ae9f05016ff0",
+    "level": "info",
+    "timestamp": 1761079349289000
+  },
+  {
+    "event_message": "✅ Webhook signature verified successfully\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "93ee1c47-a4a5-4c4e-9667-1482dee30af3",
+    "level": "info",
+    "timestamp": 1761079349285000
+  },
+  {
+    "event_message": "📥 Request body length: 3748\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "f4a108ae-32ce-4411-bab6-e513a4314f1b",
+    "level": "info",
+    "timestamp": 1761079349283000
+  },
+  {
+    "event_message": "🔍 Webhook request received: {\n  method: \"POST\",\n  hasSignature: true,\n  hasSecret: true,\n  contentType: \"application/json; charset=utf-8\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "ed5098cd-cb20-404c-9d92-52e2787f9a46",
+    "level": "info",
+    "timestamp": 1761079349283000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "e1270dbd-8c85-47e8-b86b-b0a7e8c95cca",
+    "level": "info",
+    "timestamp": 1761079349278000
+  },
+  {
+    "event_message": "booted (time: 40ms)",
+    "event_type": "Boot",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "fdf8137f-9ceb-45f8-96f1-87b2af19669e",
+    "level": "log",
+    "timestamp": 1761079349262000
+  },
+  {
+    "event_message": "🔍 Error details being returned: {\n  error: \"Webhook handler failed\",\n  message: \"Unknown error\",\n  details: \"[object Object]\",\n  timestamp: \"2025-10-21T20:42:23.362Z\",\n  event_type: \"checkout.session.completed\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "ac1f1b0a-0884-4946-8aca-84ad749776aa",
+    "level": "error",
+    "timestamp": 1761079343362000
+  },
+  {
+    "event_message": "🔍 Error details: {\n  message: \"Could not choose the best candidate function between: public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text, stripe_customer_id_param => text)\",\n  details: null,\n  hint: \"Try renaming the parameters or the function itself in the database so function overloading can be resolved\",\n  code: \"PGRST203\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "012c033d-63db-40ae-944e-bde942b501c0",
+    "level": "error",
+    "timestamp": 1761079343362000
+  },
+  {
+    "event_message": "❌ Webhook processing error: {\n  code: \"PGRST203\",\n  details: null,\n  hint: \"Try renaming the parameters or the function itself in the database so function overloading can be resolved\",\n  message: \"Could not choose the best candidate function between: public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text, stripe_customer_id_param => text)\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "7589a754-1787-4fd2-b3e8-d6d7f0bad254",
+    "level": "error",
+    "timestamp": 1761079343362000
+  },
+  {
+    "event_message": "📋 Update params were: {\n  stripe_payment_intent_id_param: \"pi_3SKlSgBSteUh6kku0NxzdGG3\",\n  new_status: \"succeeded\",\n  payment_method_param: \"card\",\n  stripe_session_id_param: \"cs_test_a1kYsOWpTpIq0iWnRDokVgDXEGcIkI66HiSgRuO8MUmnNxhY1PaWk9u9N2\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "e87f46d5-b72b-40a4-900e-edea02dec392",
+    "level": "error",
+    "timestamp": 1761079343361000
+  },
+  {
+    "event_message": "❌ Error updating payment status: {\n  code: \"PGRST203\",\n  details: null,\n  hint: \"Try renaming the parameters or the function itself in the database so function overloading can be resolved\",\n  message: \"Could not choose the best candidate function between: public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text), public.update_payment_status(stripe_payment_intent_id_param => text, new_status => text, payment_method_param => text, stripe_fee_cents_param => integer, stripe_session_id_param => text, stripe_customer_id_param => text)\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "33adf3d4-6539-4522-b188-165afea78d6b",
+    "level": "error",
+    "timestamp": 1761079343361000
+  },
+  {
+    "event_message": "⚠️ No customer ID in session\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "5af78dc6-17ec-408c-a9ea-2ed524e2ab1b",
+    "level": "info",
+    "timestamp": 1761079343009000
+  },
+  {
+    "event_message": "📨 Processing webhook event: checkout.session.completed\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "b3129559-b581-4c21-8639-0984dc58b3da",
+    "level": "info",
+    "timestamp": 1761079343009000
+  },
+  {
+    "event_message": "🎯 Processing checkout.session.completed: {\n  payment_intent: \"pi_3SKlSgBSteUh6kku0NxzdGG3\",\n  session_id: \"cs_test_a1kYsOWpTpIq0iWnRDokVgDXEGcIkI66HiSgRuO8MUmnNxhY1PaWk9u9N2\",\n  customer: null,\n  metadata: {\n    description: \"Análisis adicional - 2025-10\",\n    user_id: \"d951e996-a58f-4410-85c9-46525e06d325\",\n    workshop_id: \"a662c5e9-e14e-4acf-966c-2bb5795e3867\"\n  }\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "d829e7ba-b786-4a05-861e-23018cd5777c",
+    "level": "info",
+    "timestamp": 1761079343009000
+  },
+  {
+    "event_message": "📤 Calling update_payment_status with params: {\n  stripe_payment_intent_id_param: \"pi_3SKlSgBSteUh6kku0NxzdGG3\",\n  new_status: \"succeeded\",\n  payment_method_param: \"card\",\n  stripe_session_id_param: \"cs_test_a1kYsOWpTpIq0iWnRDokVgDXEGcIkI66HiSgRuO8MUmnNxhY1PaWk9u9N2\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "4cc3aa98-a03c-450e-b97e-0e029df8173d",
+    "level": "info",
+    "timestamp": 1761079343009000
+  },
+  {
+    "event_message": "✅ Webhook signature verified successfully\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "bdcdb0a4-a879-4c23-ba11-d7646dee3e39",
+    "level": "info",
+    "timestamp": 1761079343006000
+  },
+  {
+    "event_message": "📥 Request body length: 4039\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "5d03dd8d-a1aa-4818-95e8-24bbefd17c4a",
+    "level": "info",
+    "timestamp": 1761079343004000
+  },
+  {
+    "event_message": "🔍 Webhook request received: {\n  method: \"POST\",\n  hasSignature: true,\n  hasSecret: true,\n  contentType: \"application/json; charset=utf-8\"\n}\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "34e0b2e9-2936-4131-93bf-25681cd026b7",
+    "level": "info",
+    "timestamp": 1761079343003000
+  },
+  {
+    "event_message": "Listening on http://localhost:9999/\n",
+    "event_type": "Log",
+    "function_id": "102b5349-b2fb-499f-964d-94d475625e9c",
+    "id": "4e4ed4dd-82c2-49a1-9ee0-eeb6e46e5fc2",
+    "level": "info",
+    "timestamp": 1761079342999000
+  }
+]

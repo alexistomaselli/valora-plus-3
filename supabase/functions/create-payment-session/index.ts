@@ -89,6 +89,16 @@ serve(async (req: any) => {
     const successRedirect = successUrl?.setting_value?.value || '/payment/success'
     const cancelRedirect = cancelUrl?.setting_value?.value || '/payment/cancel'
 
+    // Create or get Stripe customer
+    const customer = await stripe.customers.create({
+      email: user.email,
+      name: profile.name || user.email,
+      metadata: {
+        user_id: user.id,
+        workshop_id: profile.workshop_id
+      }
+    })
+
     // Create Stripe Checkout Session
     const sessionData = {
       payment_method_types: ['card'],
@@ -108,7 +118,7 @@ serve(async (req: any) => {
       mode: 'payment',
       success_url: `${baseUrl}${successRedirect}?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${baseUrl}${cancelRedirect}?session_id={CHECKOUT_SESSION_ID}`,
-      customer_email: user.email,
+      customer: customer.id, // Use customer ID instead of email
       metadata: {
         user_id: user.id,
         workshop_id: profile.workshop_id,
@@ -123,9 +133,11 @@ serve(async (req: any) => {
     // Store payment record in database using the new payments table
     const paymentParams = {
       workshop_id_param: profile.workshop_id,
+      user_id_param: user.id,
       stripe_payment_intent_id_param: session.payment_intent as string,
       stripe_session_id_param: session.id,
       amount_cents_param: Math.round(amount * 100), // Convert to cents
+      stripe_customer_id_param: customer.id,
       currency_param: 'EUR',
       analysis_month_param: new Date().toISOString().slice(0, 7), // YYYY-MM
       description_param: description || 'Análisis adicional'

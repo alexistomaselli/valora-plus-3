@@ -10,6 +10,13 @@
         "SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBpeW56dnBudXJudmJybWt5bmVvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAzNjk0MzMsImV4cCI6MjA3NTk0NTQzM30.OJH_xmSuTE6Q0Pen5rswn5VSUdSfARyvjCKDV_xVPfE",
         "SUPABASE_PROJECT_ID": "piynzvpnurnvbrmkyneo"
       }
+    },
+    "stripe": {
+      "command": "npx",
+      "args": ["-y", "@stripe/mcp", "--tools=all"],
+      "env": {
+        "STRIPE_SECRET_KEY": "${STRIPE_SECRET_KEY}"
+      }
     }
   }
 }
