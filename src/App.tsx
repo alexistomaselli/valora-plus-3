@@ -15,6 +15,7 @@ import MyAccount from "./pages/MyAccount";
 import PaymentSuccess from "./pages/PaymentSuccess";
 import PaymentCancel from "./pages/PaymentCancel";
 import PaymentTest from "./pages/PaymentTest";
+import PaymentHistory from "./pages/PaymentHistory";
 import NotFound from "./pages/NotFound";
 import AdminLogin from "./pages/AdminLogin";
 import AdminLayout from "./pages/AdminLayout";
@@ -64,6 +65,7 @@ const App = () => (
               <Route path="costes/:caseId" element={<WorkshopCosts />} />
               <Route path="resultados/:caseId" element={<Results />} />
               <Route path="micuenta" element={<MyAccount />} />
+              <Route path="historial-pagos" element={<PaymentHistory />} />
             </Route>
             <Route path="/payment/success" element={
               <ProtectedRoute>

@@ -1,5 +1,5 @@
 import { Outlet, useNavigate } from "react-router-dom";
-import { Calculator, BarChart3 } from "lucide-react";
+import { Calculator, BarChart3, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserAccountDropdown } from "@/components/UserAccountDropdown";
@@ -49,6 +49,13 @@ const AppLayout = () => {
             >
               <BarChart3 className="h-4 w-4" />
               <span>Mi Cuenta</span>
+            </Link>
+            <Link 
+              to="/app/historial-pagos" 
+              className="flex items-center space-x-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <CreditCard className="h-4 w-4" />
+              <span>Historial de Pagos</span>
             </Link>
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { User, LogOut, Settings, BarChart3 } from "lucide-react";
+import { User, LogOut, Settings, BarChart3, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMonthlyUsage } from "@/hooks/use-monthly-usage";
@@ -115,6 +115,13 @@ export function UserAccountDropdown() {
           <Link to="/app/nuevo" className="flex items-center w-full">
             <BarChart3 className="mr-2 h-4 w-4" />
             <span>Nuevo Análisis</span>
+          </Link>
+        </DropdownMenuItem>
+        
+        <DropdownMenuItem asChild>
+          <Link to="/app/historial-pagos" className="flex items-center w-full">
+            <CreditCard className="mr-2 h-4 w-4" />
+            <span>Historial de Pagos</span>
           </Link>
         </DropdownMenuItem>
         

@@ -161,7 +161,7 @@ const PaymentSuccess = () => {
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
               </Link>
-              <Link to="/app/mi-cuenta">
+              <Link to="/app/historial-pagos">
                 <Button variant="outline">
                   Ver Historial de Pagos
                 </Button>

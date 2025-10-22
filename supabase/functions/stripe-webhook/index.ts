@@ -114,26 +114,51 @@ serve(async (req: any) => {
           }
         }
         
-        // Update payment status to succeeded using the new function
-        const updateParams: any = {
-          stripe_payment_intent_id_param: session.payment_intent as string,
-          new_status: 'succeeded',
-          payment_method_param: session.payment_method_types?.[0] || 'card',
-          stripe_session_id_param: session.id
+        // Get payment method and calculate fees
+        const paymentMethod = session.payment_method_types?.[0] || 'card'
+        
+        // Get payment intent details to calculate fees
+        let stripeFee = 0
+        let netAmount = 0
+        
+        if (session.payment_intent) {
+          try {
+            const paymentIntent = await stripe.paymentIntents.retrieve(
+              typeof session.payment_intent === 'string' 
+                ? session.payment_intent 
+                : session.payment_intent.id
+            )
+            
+            if (paymentIntent.charges?.data?.[0]) {
+              const charge = paymentIntent.charges.data[0]
+              stripeFee = charge.balance_transaction 
+                ? (await stripe.balanceTransactions.retrieve(
+                    typeof charge.balance_transaction === 'string'
+                      ? charge.balance_transaction
+                      : charge.balance_transaction.id
+                  )).fee
+                : 0
+              netAmount = (paymentIntent.amount || 0) - stripeFee
+            }
+          } catch (feeError) {
+            console.error('⚠️ Error calculating fees:', feeError)
+            // Continue without fee data
+          }
         }
         
-        // Only add customer ID if it exists
-        if (customerId) {
-          updateParams.stripe_customer_id_param = customerId
-          console.log('✅ Adding customer ID to params:', customerId)
-        } else {
-          console.log('⚠️ Final customer ID is still null - proceeding without it')
+        // Update payment status to completed using the new function
+        const updateParams = {
+          session_id_param: session.id,
+          new_status: 'completed',
+          payment_method_param: paymentMethod,
+          stripe_fee_cents_param: stripeFee,
+          net_amount_cents_param: netAmount,
+          stripe_customer_id_param: customerId
         }
+
+        console.log('🔄 Calling update_payment_status with params:', updateParams)
         
-        console.log('📤 Calling update_payment_status with params:', updateParams)
-        
-        const { data: updateResult, error: updateError } = await supabaseClient
-          .rpc('update_payment_status', updateParams)
+        const { data: updateResult, error: updateError } = await supabaseClient.rpc('update_payment_status', updateParams)
 
         if (updateError) {
           console.error('❌ Error updating payment status:', updateError)
@@ -152,76 +177,52 @@ serve(async (req: any) => {
         break
       }
 
-      case 'checkout.session.expired':
+      case 'checkout.session.expired': {
+        const session = event.data.object as Stripe.Checkout.Session
+        
+        console.log('🚫 Processing checkout.session.expired:', {
+          payment_intent: session.payment_intent,
+          session_id: session.id
+        })
+        
+        // Only update if we have a session_id
+        if (session.id) {
+          const { error: updateError } = await supabaseClient
+            .rpc('update_payment_status', {
+              session_id_param: session.id,
+              new_status: 'canceled'
+            })
+
+          if (updateError) {
+            console.error('❌ Error updating payment status for expired session:', updateError)
+            throw updateError
+          }
+
+          console.log('✅ Session expired, payment canceled:', session.id)
+        } else {
+          console.log('⚠️ No session_id in expired session, skipping update')
+        }
+        break
+      }
+
       case 'payment_intent.payment_failed': {
         const paymentIntent = event.data.object as Stripe.PaymentIntent
         
-        // Update payment status to failed/expired using the new function
+        console.log('❌ Processing payment_intent.payment_failed:', paymentIntent.id)
+        
+        // Update payment status to failed using the payment_intent function
         const { error: updateError } = await supabaseClient
-          .rpc('update_payment_status', {
-            stripe_payment_intent_id_param: paymentIntent.id,
-            new_status: event.type === 'checkout.session.expired' ? 'canceled' : 'failed'
+          .rpc('update_payment_status_by_intent', {
+            payment_intent_id_param: paymentIntent.id,
+            new_status: 'failed'
           })
 
         if (updateError) {
-          console.error('Error updating payment status:', updateError)
+          console.error('❌ Error updating payment status for failed payment:', updateError)
           throw updateError
         }
 
-        console.log('Payment failed/expired:', paymentIntent.id)
-        break
-      }
-
-      case 'payment_intent.succeeded': {
-        const paymentIntent = event.data.object as Stripe.PaymentIntent
-        
-        // Update payment status to succeeded using the new function
-        const { error: updateError } = await supabaseClient
-          .rpc('update_payment_status', {
-            stripe_payment_intent_id_param: paymentIntent.id,
-            new_status: 'succeeded'
-          })
-
-        if (updateError) {
-          console.error('Error updating payment status:', updateError)
-          throw updateError
-        }
-
-        console.log('Payment intent succeeded:', paymentIntent.id)
-        break
-      }
-
-      case 'charge.succeeded': {
-        const charge = event.data.object as Stripe.Charge
-        
-        console.log('Processing charge.succeeded:', {
-          payment_intent: charge.payment_intent,
-          customer: charge.customer,
-          charge_id: charge.id
-        })
-        
-        // Update payment status to succeeded using the new function
-        const updateParams: any = {
-          stripe_payment_intent_id_param: charge.payment_intent as string,
-          new_status: 'succeeded',
-          payment_method_param: charge.payment_method_details?.type || 'card'
-        }
-        
-        // Only add customer ID if it exists
-        if (charge.customer) {
-          updateParams.stripe_customer_id_param = charge.customer as string
-        }
-        
-        const { error: updateError } = await supabaseClient
-          .rpc('update_payment_status', updateParams)
-
-        if (updateError) {
-          console.error('Error updating payment status:', updateError)
-          console.error('Customer ID:', charge.customer)
-          throw updateError
-        }
-
-        console.log('Charge succeeded:', charge.payment_intent, 'Customer ID:', charge.customer)
+        console.log('✅ Payment failed, status updated:', paymentIntent.id)
         break
       }
 
