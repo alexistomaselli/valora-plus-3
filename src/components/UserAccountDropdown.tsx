@@ -1,7 +1,7 @@
 import { User, LogOut, Settings, BarChart3, CreditCard } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useMonthlyUsage } from "@/hooks/use-monthly-usage";
+import { useAnalysisBalance } from "@/hooks/use-analysis-balance";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ import {
 
 export function UserAccountDropdown() {
   const { user, profile, workshop, signOut } = useAuth();
-  const { usage, loading: usageLoading } = useMonthlyUsage();
+  const { balance, loading: balanceLoading } = useAnalysisBalance();
 
   // Datos del usuario desde el contexto de autenticación
   const userData = {
@@ -77,25 +77,34 @@ export function UserAccountDropdown() {
               </div>
             )}
             
-            <div className="flex items-center justify-between pt-2">
-              <span className="text-xs text-muted-foreground">Uso mensual:</span>
-              {usageLoading ? (
-                <Badge variant="secondary" className="text-xs">
-                  Cargando...
-                </Badge>
-              ) : usage ? (
-                <Badge 
-                  variant={usage.remainingFreeAnalyses === 0 ? "destructive" : "secondary"}
-                  className="text-xs"
-                >
-                  {usage.totalAnalyses}/{usage.freeAnalysesLimit} análisis
-                </Badge>
-              ) : (
-                <Badge variant="secondary" className="text-xs">
-                  0/3 análisis
-                </Badge>
-              )}
-            </div>
+            <div className="flex flex-col gap-1 pt-2">
+                <span className="text-xs text-muted-foreground">Balance de análisis:</span>
+                {balanceLoading ? (
+                  <Badge variant="secondary" className="text-xs">
+                    Cargando...
+                  </Badge>
+                ) : balance ? (
+                  <div className="flex flex-col gap-1">
+                    <Badge 
+                      variant={balance.totalAnalysesAvailable === 0 ? "destructive" : "secondary"}
+                      className="text-xs"
+                    >
+                      {balance.totalAnalysesAvailable} total disponibles
+                    </Badge>
+                    {(balance.remainingFreeAnalyses > 0 || balance.paidAnalysesAvailable > 0) && (
+                      <div className="text-xs text-muted-foreground">
+                        {balance.remainingFreeAnalyses > 0 && `${balance.remainingFreeAnalyses} gratuitos`}
+                        {balance.remainingFreeAnalyses > 0 && balance.paidAnalysesAvailable > 0 && ' + '}
+                        {balance.paidAnalysesAvailable > 0 && `${balance.paidAnalysesAvailable} pagados`}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Badge variant="secondary" className="text-xs">
+                    0 disponibles
+                  </Badge>
+                )}
+              </div>
           </div>
         </DropdownMenuLabel>
         

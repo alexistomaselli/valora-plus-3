@@ -485,6 +485,48 @@ export type Database = {
           }
         ]
       }
+      analysis_packages: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          analyses_count: number
+          price_per_analysis: number
+          total_price: number
+          discount_percentage: number
+          is_active: boolean
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          analyses_count: number
+          price_per_analysis: number
+          total_price: number
+          discount_percentage?: number
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          analyses_count?: number
+          price_per_analysis?: number
+          total_price?: number
+          discount_percentage?: number
+          is_active?: boolean
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -557,6 +599,14 @@ export type Database = {
           p_start_date?: string
           p_end_date?: string
         }
+        Returns: Json
+      }
+      get_active_packages: {
+        Args: Record<PropertyKey, never>
+        Returns: Json
+      }
+      get_package_by_id: {
+        Args: { package_id: string }
         Returns: Json
       }
     }

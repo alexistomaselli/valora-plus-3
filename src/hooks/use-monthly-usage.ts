@@ -8,6 +8,7 @@ export interface MonthlyUsage {
   paidAnalysesCount: number;
   freeAnalysesLimit: number;
   remainingFreeAnalyses: number;
+  remainingPaidAnalyses: number;
   totalAmountDue: number;
   paymentStatus: string;
   year: number;
@@ -38,6 +39,7 @@ export const useMonthlyUsage = () => {
           paidAnalysesCount: usageData.paid_analyses_count || 0,
           freeAnalysesLimit: usageData.free_analyses_limit || 3,
           remainingFreeAnalyses: usageData.remaining_free_analyses || 0,
+          remainingPaidAnalyses: usageData.remaining_paid_analyses || 0,
           totalAmountDue: usageData.total_amount_due || 0,
           paymentStatus: usageData.payment_status || 'pending',
           year: usageData.year || new Date().getFullYear(),
@@ -63,12 +65,12 @@ export const useMonthlyUsage = () => {
     return fetchUsage();
   };
 
-  // Función para verificar si el usuario puede crear un análisis gratuito
+  // Función para verificar si el usuario puede crear un análisis
   const canCreateAnalysis = () => {
     if (!usage) return false;
     
-    // Solo puede crear análisis gratuitos si tiene análisis gratuitos disponibles
-    return usage.remainingFreeAnalyses > 0;
+    // Puede crear análisis si tiene análisis gratuitos o pagados disponibles
+    return usage.remainingFreeAnalyses > 0 || usage.remainingPaidAnalyses > 0;
   };
 
   // Función para obtener el costo del próximo análisis
@@ -110,19 +112,21 @@ export const useMonthlyUsage = () => {
         billingEnabled: billingEnabled?.setting_value,
         isBillingEnabled,
         price,
-        remainingFreeAnalyses: usage.remainingFreeAnalyses
+        remainingFreeAnalyses: usage.remainingFreeAnalyses,
+        remainingPaidAnalyses: usage.remainingPaidAnalyses
       });
       
-      // Determinar si el próximo análisis es gratuito
+      // Determinar si el próximo análisis es gratuito o pagado (ya comprado)
       const isNextAnalysisFree = usage.remainingFreeAnalyses > 0;
+      const hasRemainingPaidAnalyses = usage.remainingPaidAnalyses > 0;
       
       // Calcular el costo
       let cost = 0;
-      if (!isNextAnalysisFree && isBillingEnabled) {
+      if (!isNextAnalysisFree && !hasRemainingPaidAnalyses && isBillingEnabled) {
         cost = price;
       }
       
-      console.log('Cálculo final:', { isNextAnalysisFree, isBillingEnabled, cost });
+      console.log('Cálculo final:', { isNextAnalysisFree, hasRemainingPaidAnalyses, isBillingEnabled, cost });
       return cost;
     } catch (err) {
       console.error('Error calculando el costo del próximo análisis:', err);

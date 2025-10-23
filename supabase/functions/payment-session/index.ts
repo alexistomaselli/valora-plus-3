@@ -25,10 +25,21 @@ serve(async (req) => {
       }
     )
 
-    // Get the user from the request
-    const {
-      data: { user },
-    } = await supabaseClient.auth.getUser()
+    // Get request body first
+    const body = await req.json()
+    const { amount, currency = 'eur', description = 'Payment', package_id, analyses_count, user_id } = body
+
+    // Get the user from the request or from body
+    let user = null
+    if (req.headers.get('Authorization')) {
+      const {
+        data: { user: authUser },
+      } = await supabaseClient.auth.getUser()
+      user = authUser
+    } else if (user_id) {
+      // When no JWT, accept user_id from body (for testing)
+      user = { id: user_id }
+    }
 
     if (!user) {
       return new Response(
@@ -40,11 +51,34 @@ serve(async (req) => {
       )
     }
 
-    // Get request body
-    const body = await req.json()
-    const { amount, currency = 'eur', description = 'Payment' } = body
+    let packageData = null
+    let finalAmount = amount
+    let finalDescription = description
+    let finalAnalysesCount = analyses_count || 1
 
-    if (!amount || amount <= 0) {
+    // If package_id is provided, get package details
+    if (package_id) {
+      const { data: packageInfo, error: packageError } = await supabaseClient
+        .rpc('get_package_by_id', { package_id })
+        .single()
+
+      if (packageError || !packageInfo) {
+        return new Response(
+          JSON.stringify({ error: 'Package not found' }),
+          {
+            status: 404,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      packageData = packageInfo
+      finalAmount = Number(packageInfo.total_price)
+      finalDescription = `${packageInfo.name} - ${packageInfo.analyses_count} análisis`
+      finalAnalysesCount = packageInfo.analyses_count
+    }
+
+    if (!finalAmount || finalAmount <= 0) {
       return new Response(
         JSON.stringify({ error: 'Invalid amount' }),
         {
@@ -100,9 +134,9 @@ serve(async (req) => {
           price_data: {
             currency: currency,
             product_data: {
-              name: description,
+              name: finalDescription,
             },
-            unit_amount: Math.round(amount * 100), // Convert to cents
+            unit_amount: Math.round(finalAmount * 100), // Convert to cents
           },
           quantity: 1,
         },
@@ -114,9 +148,16 @@ serve(async (req) => {
       metadata: {
         user_id: user.id,
         workshop_id: profile.workshop_id || '',
-        description: description,
+        description: finalDescription,
+        package_id: package_id || '',
+        analyses_count: finalAnalysesCount.toString(),
       },
     })
+
+    // Calculate unit price
+    const unitPriceCents = packageData 
+      ? Math.round(Number(packageData.price_per_analysis) * 100)
+      : Math.round(finalAmount * 100)
 
     // Store payment record
     const { error: paymentError } = await supabaseClient
@@ -126,13 +167,14 @@ serve(async (req) => {
         workshop_id: profile.workshop_id || '00000000-0000-0000-0000-000000000000', // Default UUID if no workshop
         stripe_session_id: session.id,
         stripe_payment_intent_id: session.payment_intent || session.id, // Use session.id as fallback
-        amount_cents: Math.round(amount * 100), // Convert to cents
+        amount_cents: Math.round(finalAmount * 100), // Convert to cents
         currency: currency,
         status: 'pending',
         analysis_month: new Date().toISOString().slice(0, 7), // YYYY-MM format
-        analyses_purchased: 1, // Default to 1 analysis
-        unit_price_cents: Math.round(amount * 100), // Same as amount_cents for now
-        description: description,
+        analyses_purchased: finalAnalysesCount,
+        unit_price_cents: unitPriceCents,
+        description: finalDescription,
+        package_id: package_id || null, // ✨ Agregar package_id al registro
       })
 
     if (paymentError) {

@@ -2,13 +2,19 @@ import { useState, useCallback } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+
 import { Upload, FileText, AlertCircle, CheckCircle2, ArrowRight, CreditCard } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useMonthlyUsage } from "@/hooks/use-monthly-usage";
+import { useAnalysisBalance } from "@/hooks/use-analysis-balance";
 import { useSystemSettings } from "@/hooks/use-system-settings";
+import { useAnalysisPackages } from "@/hooks/use-analysis-packages";
+import StripeIcon from "@/components/StripeIcon";
 
 const NewAnalysis = () => {
   const [dragActive, setDragActive] = useState(false);
@@ -16,10 +22,14 @@ const NewAnalysis = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState<string | null>(null);
+
   const { toast } = useToast();
   const { session, profile, workshop } = useAuth();
   const { usage: monthlyUsage, loading: usageLoading, canCreateAnalysis, getNextAnalysisCost, refreshUsage } = useMonthlyUsage();
+  const { refreshBalance } = useAnalysisBalance();
   const { settings: systemSettings } = useSystemSettings();
+  const { packages, loading: packagesLoading } = useAnalysisPackages();
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -83,27 +93,28 @@ const NewAnalysis = () => {
     setIsProcessingPayment(true);
     
     try {
-      const cost = await getNextAnalysisCost();
-      console.log('Costo obtenido:', cost, 'Tipo:', typeof cost);
-      
-      if (typeof cost !== 'number' || cost <= 0) {
-        console.error('Costo inválido:', cost);
-        throw new Error('No se pudo obtener el costo del análisis');
+      if (!selectedPackage) {
+        throw new Error('Debe seleccionar un paquete');
       }
-      
-      // Obtener el mes actual para los metadatos
-      const currentDate = new Date();
-      const analysisMonth = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`;
+
+      // Pago de paquete
+      const packageData = packages.find(pkg => pkg.id === selectedPackage);
+      if (!packageData) {
+        throw new Error('Paquete seleccionado no encontrado');
+      }
+
+      const paymentData = {
+        currency: 'eur',
+        package_id: selectedPackage,
+        analyses_count: packageData.analyses_count,
+        description: `Paquete: ${packageData.name} - ${packageData.analyses_count} análisis`,
+        user_id: session?.user?.id
+      };
       
       // Crear sesión de pago con Stripe
-      console.log('Creating payment session with cost:', cost);
+      console.log('Creating payment session with data:', paymentData);
       const { data, error } = await supabase.functions.invoke('payment-session', {
-        body: {
-          amount: cost, // Enviar en euros, la función Edge se encarga de convertir a centavos
-          currency: 'eur',
-          description: `Análisis adicional - ${analysisMonth}`,
-          analysis_month: analysisMonth
-        }
+        body: paymentData
       });
 
       if (error) {
@@ -450,6 +461,15 @@ const NewAnalysis = () => {
         description: "Los datos se han extraído y guardado correctamente.",
       });
 
+      // Actualizar el balance de análisis después de completar exitosamente
+      try {
+        await refreshBalance();
+        await refreshUsage(); // También actualizar el hook original por compatibilidad
+      } catch (refreshError) {
+        console.error('Error actualizando balance:', refreshError);
+        // No mostramos error al usuario ya que el análisis se completó exitosamente
+      }
+
       setTimeout(() => {
         window.location.href = `/app/verificacion/${analysis.id}`;
       }, 1000);
@@ -484,6 +504,7 @@ const NewAnalysis = () => {
     // Cerrar el modal y limpiar cualquier archivo que pueda estar cargado
     setShowPaymentModal(false);
     setUploadedFile(null);
+    setSelectedPackage(null);
   };
 
   return (
@@ -652,49 +673,70 @@ const NewAnalysis = () => {
 
       {/* Modal de Pago */}
       <Dialog open={showPaymentModal} onOpenChange={(open) => !open && handleCancelPayment()}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center space-x-2">
               <CreditCard className="h-5 w-5 text-primary" />
-              <span>Análisis Adicional</span>
+              <span>Comprar Análisis</span>
             </DialogTitle>
             <DialogDescription>
-              Has alcanzado el límite de análisis gratuitos para este mes. Para continuar, necesitas realizar un pago.
+              Has alcanzado el límite de análisis gratuitos para este mes. Elige una opción para continuar.
             </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4">
-            {monthlyUsage && (
-              <div className="bg-muted/50 rounded-lg p-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                   <div>
-                     <span className="text-muted-foreground">Análisis realizados:</span>
-                     <p className="font-medium">{monthlyUsage.totalAnalyses}</p>
-                   </div>
-                   <div>
-                      <span className="text-muted-foreground">Análisis gratuitos:</span>
-                      <p className="font-medium">{monthlyUsage.freeAnalysesUsed} / {monthlyUsage.freeAnalysesLimit}</p>
+            {packagesLoading ? (
+              <div className="text-center py-4">
+                <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full mx-auto"></div>
+                <p className="text-sm text-muted-foreground mt-2">Cargando paquetes...</p>
+              </div>
+            ) : packages.length > 0 ? (
+              <RadioGroup value={selectedPackage || ''} onValueChange={setSelectedPackage}>
+                <div className="space-y-3">
+                  {packages.map((pkg) => (
+                    <div key={pkg.id} className="flex items-center space-x-3 p-4 border rounded-lg hover:bg-muted/50 transition-colors">
+                      <RadioGroupItem value={pkg.id} id={pkg.id} />
+                      <Label htmlFor={pkg.id} className="flex-1 cursor-pointer">
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <h4 className="font-medium">{pkg.name}</h4>
+                            {pkg.description && (
+                              <p className="text-sm text-muted-foreground">{pkg.description}</p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                              {pkg.analyses_count} análisis • €{(pkg.price_per_analysis / 100).toFixed(2)} por análisis
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-lg">{pkg.formattedPrice}</p>
+                            {pkg.savings > 0 && (
+                              <p className="text-sm text-green-600">
+                                Ahorras {pkg.formattedSavings}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </Label>
                     </div>
-                    <div>
-                      <span className="text-muted-foreground">Costo del análisis:</span>
-                      <p className="font-medium text-primary">
-                        {monthlyUsage && monthlyUsage.remainingFreeAnalyses > 0 
-                          ? 0 
-                          : systemSettings?.additionalAnalysisPrice || 25}€
-                      </p>
-                    </div>
-                   <div>
-                     <span className="text-muted-foreground">Total pendiente:</span>
-                     <p className="font-medium">{monthlyUsage.totalAmountDue}€</p>
-                   </div>
-                 </div>
+                  ))}
+                </div>
+              </RadioGroup>
+            ) : (
+              <div className="text-center py-4">
+                <p className="text-muted-foreground">No hay paquetes disponibles en este momento.</p>
               </div>
             )}
             
-            <div className="text-sm text-muted-foreground">
-              <p>• El pago se procesará de forma segura a través de Stripe</p>
+            <div className="text-sm text-muted-foreground border-t pt-4 space-y-1">
+              <p>• Pago único con descuentos por volumen</p>
+              <p>• Los análisis se añaden a tu balance</p>
+              <p>• Ideal para uso frecuente</p>
+              <p className="flex items-center">
+                • El pago se procesará de forma segura a través de 
+                <StripeIcon className="mx-1 h-4 w-4" size={16} />
+                Stripe
+              </p>
               <p>• Podrás continuar inmediatamente después del pago</p>
-              <p>• Recibirás una factura por email</p>
             </div>
           </div>
 
@@ -708,7 +750,7 @@ const NewAnalysis = () => {
             </Button>
             <Button 
               onClick={processPayment}
-              disabled={isProcessingPayment}
+              disabled={isProcessingPayment || !selectedPackage}
               className="bg-gradient-primary text-primary-foreground"
             >
               {isProcessingPayment ? (
@@ -718,10 +760,12 @@ const NewAnalysis = () => {
                 </>
               ) : (
                  <>
-                   <CreditCard className="mr-2 h-4 w-4" />
-                   Pagar {monthlyUsage && monthlyUsage.remainingFreeAnalyses > 0 
-                     ? 0 
-                     : systemSettings?.additionalAnalysisPrice || 25}€
+                   <StripeIcon className="mr-2 h-4 w-4" size={16} />
+                   {selectedPackage ? (
+                     `Pagar ${packages.find(p => p.id === selectedPackage)?.formattedPrice || '€0.00'}`
+                   ) : (
+                     'Selecciona un paquete'
+                   )}
                  </>
                )}
             </Button>

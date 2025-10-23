@@ -10,6 +10,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useMonthlyUsage } from "@/hooks/use-monthly-usage";
+import { useAnalysisBalance } from "@/hooks/use-analysis-balance";
 
 interface Analysis {
   id: string;
@@ -47,6 +48,7 @@ const MyAccount = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { usage: monthlyUsage, loading: usageLoading, refreshUsage } = useMonthlyUsage();
+  const { balance: analysisBalance, loading: balanceLoading } = useAnalysisBalance();
   
   const [userAnalyses, setUserAnalyses] = useState<AnalysisWithCalculations[]>([]);
   const [analysesLoading, setAnalysesLoading] = useState(true);
@@ -498,51 +500,111 @@ const MyAccount = () => {
           </CardContent>
         </Card>
 
-        {/* Uso Mensual - A la derecha */}
+        {/* Balance de Análisis - A la derecha */}
         <Card className="md:col-span-1 lg:col-span-1">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="h-5 w-5" />
-              Uso Mensual
-              {usageLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+              Balance de Análisis
+              {(usageLoading || balanceLoading) && <Loader2 className="h-4 w-4 animate-spin" />}
             </CardTitle>
             <CardDescription>
-              {userData.monthlyUsage} de {userData.maxUsage} análisis gratuitos utilizados
+              {analysisBalance ? (
+                `${analysisBalance.totalAnalysesAvailable} análisis disponibles en total`
+              ) : (
+                `${userData.monthlyUsage} de ${userData.maxUsage} análisis gratuitos utilizados`
+              )}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {/* Progreso de análisis gratuitos */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Análisis gratuitos</span>
-                  <span>{Math.round((userData.monthlyUsage / userData.maxUsage) * 100)}%</span>
-                </div>
-                <div className="w-full bg-secondary rounded-full h-2">
-                  <div 
-                    className="bg-primary h-2 rounded-full transition-all duration-300" 
-                    style={{ width: `${(userData.monthlyUsage / userData.maxUsage) * 100}%` }}
-                  ></div>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {userData.remainingFreeAnalyses} análisis gratuitos restantes
-                </div>
-              </div>
-
-              {/* Información adicional */}
-              {userData.totalAnalyses > userData.monthlyUsage && (
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Análisis de pago</span>
-                    <span>{userData.paidAnalyses}</span>
-                  </div>
-                  {userData.totalAmountDue > 0 && (
+              {analysisBalance ? (
+                <>
+                  {/* Análisis gratuitos */}
+                  <div className="space-y-2">
                     <div className="flex justify-between text-sm">
-                      <span>Importe pendiente</span>
-                      <span className="font-medium">€{userData.totalAmountDue.toFixed(2)}</span>
+                      <span>Análisis gratuitos</span>
+                      <span>{Math.round((analysisBalance.freeAnalysesUsed / analysisBalance.freeAnalysesLimit) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${(analysisBalance.freeAnalysesUsed / analysisBalance.freeAnalysesLimit) * 100}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {analysisBalance.remainingFreeAnalyses} análisis gratuitos restantes de {analysisBalance.freeAnalysesLimit}
+                    </div>
+                  </div>
+
+                  {/* Análisis pagados */}
+                  {(analysisBalance.paidAnalysesAvailable > 0 || analysisBalance.totalPaidAnalysesPurchased > 0) && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Análisis pagados</span>
+                        <span>{analysisBalance.paidAnalysesAvailable} disponibles</span>
+                      </div>
+                      {analysisBalance.totalPaidAnalysesPurchased > 0 && (
+                        <div className="text-xs text-muted-foreground">
+                          {analysisBalance.paidAnalysesUsed} usados de {analysisBalance.totalPaidAnalysesPurchased} comprados
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
+
+                  {/* Resumen total */}
+                  <div className="pt-2 border-t">
+                    <div className="flex justify-between text-sm font-medium">
+                      <span>Total disponible</span>
+                      <span className={analysisBalance.totalAnalysesAvailable === 0 ? "text-destructive" : "text-primary"}>
+                        {analysisBalance.totalAnalysesAvailable} análisis
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Información de pago pendiente */}
+                  {analysisBalance.totalAmountDue > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span>Importe pendiente</span>
+                      <span className="font-medium">€{analysisBalance.totalAmountDue.toFixed(2)}</span>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  {/* Fallback al sistema anterior */}
+                  <div className="space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span>Análisis gratuitos</span>
+                      <span>{Math.round((userData.monthlyUsage / userData.maxUsage) * 100)}%</span>
+                    </div>
+                    <div className="w-full bg-secondary rounded-full h-2">
+                      <div 
+                        className="bg-primary h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${(userData.monthlyUsage / userData.maxUsage) * 100}%` }}
+                      ></div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {userData.remainingFreeAnalyses} análisis gratuitos restantes
+                    </div>
+                  </div>
+
+                  {/* Información adicional */}
+                  {userData.totalAnalyses > userData.monthlyUsage && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Análisis de pago</span>
+                        <span>{userData.paidAnalyses}</span>
+                      </div>
+                      {userData.totalAmountDue > 0 && (
+                        <div className="flex justify-between text-sm">
+                          <span>Importe pendiente</span>
+                          <span className="font-medium">€{userData.totalAmountDue.toFixed(2)}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
 
               {/* Estado del plan */}

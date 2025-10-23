@@ -174,6 +174,14 @@ serve(async (req: any) => {
 
         console.log('✅ Payment completed successfully:', session.payment_intent, 'Session ID:', session.id, 'Customer ID:', session.customer)
         console.log('📊 Update result:', updateResult)
+        
+        // ✨ SIMPLIFIED WEBHOOK: El trigger automático se encarga del balance
+        // Ya no necesitamos manejar manualmente el balance aquí
+        // El trigger 'trigger_payment_completion_add_balance' se ejecutará automáticamente
+        // cuando el status del payment cambie a 'completed' en la función update_payment_status
+        
+        console.log('🎯 Payment status updated to completed. Trigger will handle balance automatically.')
+        
         break
       }
 
