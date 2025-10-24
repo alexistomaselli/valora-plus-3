@@ -5,15 +5,18 @@ FROM node:18-alpine AS builder
 ARG VITE_SUPABASE_URL
 ARG VITE_SUPABASE_PUBLISHABLE_KEY
 ARG VITE_SUPABASE_PROJECT_ID
+ARG VITE_OPENAI_API_KEY
 
 # Validar que las variables requeridas estén presentes
 RUN if [ -z "$VITE_SUPABASE_URL" ]; then echo "ERROR: VITE_SUPABASE_URL is required" && exit 1; fi
 RUN if [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then echo "ERROR: VITE_SUPABASE_PUBLISHABLE_KEY is required" && exit 1; fi
+RUN if [ -z "$VITE_OPENAI_API_KEY" ]; then echo "ERROR: VITE_OPENAI_API_KEY is required" && exit 1; fi
 
 # Establecer las variables de entorno para el build
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
 ENV VITE_SUPABASE_PUBLISHABLE_KEY=$VITE_SUPABASE_PUBLISHABLE_KEY
 ENV VITE_SUPABASE_PROJECT_ID=$VITE_SUPABASE_PROJECT_ID
+ENV VITE_OPENAI_API_KEY=$VITE_OPENAI_API_KEY
 
 # Establecer directorio de trabajo
 WORKDIR /app
