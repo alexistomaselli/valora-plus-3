@@ -130,6 +130,27 @@ const Register = () => {
       return false;
     }
 
+    // Validar teléfono
+    if (!phone.trim()) {
+      toast({
+        title: "Teléfono requerido",
+        description: "El teléfono del taller es obligatorio",
+        variant: "destructive"
+      });
+      return false;
+    }
+
+    // Validar formato de teléfono (básico)
+    const phoneRegex = /^[\+]?[1-9][\d]{0,15}$/;
+    if (!phoneRegex.test(phone.replace(/[\s\-\(\)]/g, ''))) {
+      toast({
+        title: "Teléfono inválido",
+        description: "Por favor, introduce un número de teléfono válido",
+        variant: "destructive"
+      });
+      return false;
+    }
+
     // Validar contraseña
     const passwordErrors = validatePassword(password);
     if (passwordErrors.length > 0) {
@@ -382,8 +403,21 @@ const Register = () => {
                     required
                     className="transition-all duration-300 focus:shadow-glow"
                   />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Teléfono del taller *</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    placeholder="+34 123 456 789"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    className="transition-all duration-300 focus:shadow-glow"
+                  />
                   <p className="text-sm text-muted-foreground">
-                    Podrás completar más información desde tu panel de cuenta
+                    Número de contacto principal del taller
                   </p>
                 </div>
 
