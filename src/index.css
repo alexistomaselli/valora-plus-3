@@ -116,3 +116,212 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Estilos específicos para mejorar la generación de PDF */
+@layer utilities {
+  .pdf-optimized {
+    /* Mejorar la renderización de texto */
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    
+    /* Asegurar que los elementos se rendericen correctamente */
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    
+    /* Mejorar la calidad de las imágenes y gráficos */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    
+    /* Forzar el layout para evitar problemas de alineación */
+    contain: layout style paint;
+  }
+  
+  .pdf-optimized * {
+    /* Evitar problemas de overflow que pueden causar desalineación */
+    box-sizing: border-box;
+    
+    /* Mejorar la renderización de bordes */
+    border-style: solid;
+  }
+  
+  .pdf-optimized .card {
+    /* Asegurar que las tarjetas mantengan su estructura */
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  .pdf-optimized .grid {
+    /* Mejorar la renderización de grids */
+    display: grid !important;
+  }
+  
+  .pdf-optimized .flex {
+    /* Mejorar la renderización de flexbox */
+    display: flex !important;
+  }
+  
+  .pdf-optimized .no-pdf {
+    /* Ocultar elementos que no deben aparecer en el PDF */
+    display: none !important;
+    visibility: hidden !important;
+  }
+  
+  /* Optimización de espaciado para PDF */
+  .pdf-optimized .space-y-6 > * + * {
+    margin-top: 1rem !important;
+  }
+  
+  .pdf-optimized .mb-8 {
+    margin-bottom: 1.5rem !important;
+  }
+  
+  .pdf-optimized .gap-6 {
+    gap: 1rem !important;
+  }
+  
+  .pdf-optimized .gap-4 {
+    gap: 0.75rem !important;
+  }
+  
+  .pdf-optimized .p-6 {
+    padding: 1rem !important;
+  }
+  
+  .pdf-optimized .p-4 {
+    padding: 0.75rem !important;
+  }
+  
+  /* Mejorar la densidad de las cards */
+  .pdf-optimized .card {
+    margin-bottom: 1rem !important;
+  }
+  
+  /* Optimizar el grid del desglose */
+  .pdf-optimized .grid.md\\:grid-cols-2.lg\\:grid-cols-3 {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 0.75rem !important;
+  }
+  
+  /* Asegurar que el contenido use todo el ancho disponible */
+  .pdf-optimized {
+    max-width: none !important;
+    width: 100% !important;
+  }
+}
+
+/* Estilos para impresión */
+@media print {
+  /* Ocultar elementos no deseados en la impresión */
+  .noprint,
+  .no-print,
+  header,
+  nav,
+  .header,
+  .navigation,
+  button:not(.print-keep),
+  .btn:not(.print-keep),
+  .sidebar,
+  .footer,
+  .scroll-area,
+  .toast,
+  .dialog,
+  .modal {
+    display: none !important;
+  }
+  
+  /* Configuración general de la página */
+  @page {
+    margin: 0.5in;
+    size: A4;
+  }
+  
+  /* Resetear estilos para impresión */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  body {
+    background: white !important;
+    color: black !important;
+    font-size: 12pt;
+    line-height: 1.4;
+  }
+  
+  /* Optimizar el contenido principal */
+  .main-content,
+  .results-content {
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+  
+  /* Mejorar las tarjetas para impresión */
+  .card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #ddd !important;
+    box-shadow: none !important;
+    margin-bottom: 0.5rem !important;
+  }
+  
+  /* Optimizar las tablas */
+  table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+  
+  th, td {
+    border: 1px solid #ddd !important;
+    padding: 8px !important;
+    text-align: left !important;
+  }
+  
+  /* Optimizar los títulos */
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+    margin-top: 0 !important;
+  }
+  
+  /* Asegurar que los colores se mantengan */
+  .text-green-600 {
+    color: #16a34a !important;
+  }
+  
+  .text-red-600 {
+    color: #dc2626 !important;
+  }
+  
+  .text-blue-600 {
+    color: #2563eb !important;
+  }
+  
+  .bg-green-50 {
+    background-color: #f0fdf4 !important;
+  }
+  
+  .bg-red-50 {
+    background-color: #fef2f2 !important;
+  }
+  
+  .bg-blue-50 {
+    background-color: #eff6ff !important;
+  }
+}
+
+/* Estilos específicos cuando el body tiene la clase print-mode */
+body.print-mode {
+  /* Preparar para impresión */
+  overflow: visible !important;
+}
+
+body.print-mode .noprint,
+body.print-mode .no-print {
+  display: none !important;
+}

@@ -9,6 +9,54 @@ import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 
+// Error types for better error handling
+enum ErrorType {
+  VALIDATION_ERROR = 'validation_error',
+  DATABASE_ERROR = 'database_error',
+  NETWORK_ERROR = 'network_error',
+  AUTHENTICATION_ERROR = 'authentication_error',
+  UNKNOWN_ERROR = 'unknown_error'
+}
+
+interface AppError {
+  type: ErrorType;
+  message: string;
+  originalError?: any;
+}
+
+// Helper function to create standardized errors
+const createError = (type: ErrorType, message: string, originalError?: any): AppError => ({
+  type,
+  message,
+  originalError
+});
+
+// Helper function to handle errors consistently
+const handleError = (error: any, toast: any): void => {
+  console.error('Error details:', error);
+  
+  let errorMessage = 'Ha ocurrido un error inesperado';
+  
+  if (error?.type) {
+    // It's our custom AppError
+    errorMessage = error.message;
+  } else if (error?.message?.includes('fetch') || error?.message?.includes('network')) {
+    errorMessage = 'Error de conexión. Verifica tu conexión a internet.';
+  } else if (error?.code?.startsWith('PGRST') || error?.message?.includes('database')) {
+    errorMessage = 'Error en la base de datos. Inténtalo de nuevo.';
+  } else if (error?.message?.includes('email')) {
+    errorMessage = 'Error relacionado con el email. Verifica que sea válido.';
+  } else if (error?.message) {
+    errorMessage = error.message;
+  }
+  
+  toast({
+    title: "Error",
+    description: errorMessage,
+    variant: "destructive",
+  });
+};
+
 const Register = () => {
   const [email, setEmail] = useState(''); // Email del usuario para autenticación
   const [fullName, setFullName] = useState(''); // Nombre completo del usuario
@@ -166,24 +214,39 @@ const Register = () => {
           navigate('/login');
           
         } catch (workshopError: any) {
-          console.error('Error en configuración del taller:', workshopError);
-          
-          toast({
-            title: "Error en configuración del taller",
-            description: `Tu cuenta se creó pero hubo un problema configurando el taller: ${workshopError.message}. Verifica tu email y contacta con soporte.`,
-            variant: "destructive"
-          });
-          
+          const appError = createError(
+            ErrorType.DATABASE_ERROR,
+            `Tu cuenta se creó pero hubo un problema configurando el taller: ${workshopError.message}. Verifica tu email y contacta con soporte.`,
+            workshopError
+          );
+          handleError(appError, toast);
           navigate('/login');
         }
       }
     } catch (error: any) {
-      console.error('Error en registro:', error);
-      toast({
-        title: "Error en el registro",
-        description: error.message || "Hubo un problema al crear tu cuenta. Inténtalo de nuevo.",
-        variant: "destructive"
-      });
+      let appError: AppError;
+      
+      if (error?.message?.includes('email')) {
+        appError = createError(
+          ErrorType.AUTHENTICATION_ERROR,
+          'Error con el email. Verifica que sea válido y no esté ya registrado.',
+          error
+        );
+      } else if (error?.message?.includes('password')) {
+        appError = createError(
+          ErrorType.VALIDATION_ERROR,
+          'Error con la contraseña. Debe tener al menos 6 caracteres.',
+          error
+        );
+      } else {
+        appError = createError(
+          ErrorType.UNKNOWN_ERROR,
+          'Hubo un problema al crear tu cuenta. Inténtalo de nuevo.',
+          error
+        );
+      }
+      
+      handleError(appError, toast);
     } finally {
       setIsLoading(false);
     }

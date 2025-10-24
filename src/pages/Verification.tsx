@@ -10,6 +10,54 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 
+// Error types for better error handling
+enum ErrorType {
+  VALIDATION_ERROR = 'validation_error',
+  DATABASE_ERROR = 'database_error',
+  NETWORK_ERROR = 'network_error',
+  UNKNOWN_ERROR = 'unknown_error'
+}
+
+interface AppError {
+  type: ErrorType;
+  message: string;
+  originalError?: Error;
+}
+
+// Helper function to create standardized errors
+const createError = (type: ErrorType, message: string, originalError?: Error): AppError => ({
+  type,
+  message,
+  originalError
+});
+
+// Helper function to handle errors consistently
+const handleError = (error: unknown, toast: any, context: string = '') => {
+  console.error(`Error in ${context}:`, error);
+  
+  let appError: AppError;
+  
+  if (error instanceof Error) {
+    if (error.message.includes('network') || error.message.includes('fetch')) {
+      appError = createError(ErrorType.NETWORK_ERROR, 'Error de conexión. Verifica tu conexión a internet.', error);
+    } else if (error.message.includes('database') || error.message.includes('supabase')) {
+      appError = createError(ErrorType.DATABASE_ERROR, 'Error en la base de datos. Inténtalo de nuevo.', error);
+    } else {
+      appError = createError(ErrorType.UNKNOWN_ERROR, error.message, error);
+    }
+  } else {
+    appError = createError(ErrorType.UNKNOWN_ERROR, 'Error desconocido. Inténtalo de nuevo.');
+  }
+  
+  toast({
+    title: "Error",
+    description: appError.message,
+    variant: "destructive"
+  });
+  
+  return appError;
+};
+
 const Verification = () => {
   const { caseId } = useParams<{ caseId: string }>();
   const [isEditing, setIsEditing] = useState(false);
@@ -29,19 +77,25 @@ const Verification = () => {
       valuation_date: "",
       referencia: "",
       sistema: "",
-      precio_hora: ""
+      precio_hora_mecanica: "",
+      precio_hora_pintura: ""
     },
     totales: {
       repuestos_total: "",
+      cantidad_materiales_repuestos: "",
       mo_chapa_ut: "",
-      mo_chapa_eur: "",
+      mo_mecanica_eur: "",
       mo_pintura_ut: "",
       mo_pintura_eur: "",
       mat_pintura_eur: "",
       subtotal_neto: "",
       iva_percentage: "",
       iva: "",
-      total_con_iva: ""
+      total_con_iva: "",
+      // Nuevos campos de horas convertidas
+      mo_mecanica_horas: "",
+      mo_pintura_horas: "",
+      unidades_detectadas: ""
     }
   });
 
@@ -77,7 +131,7 @@ const Verification = () => {
           .eq('analysis_id', caseId)
           .single();
 
-        // Get insurance amounts
+        // Get insurance amounts (including new converted hours fields)
         const { data: insuranceData, error: insuranceError } = await supabase
           .from('insurance_amounts')
           .select('*')
@@ -109,19 +163,25 @@ const Verification = () => {
                valuation_date: analysis.valuation_date || "",
                referencia: vehicleData.internal_reference || "",
                sistema: vehicleData.system || "",
-               precio_hora: vehicleData.hourly_price?.toString() || ""
+               precio_hora_mecanica: vehicleData.hourly_price?.toString() || "",
+               precio_hora_pintura: vehicleData.hourly_price?.toString() || ""
              },
              totales: {
                repuestos_total: insuranceData.total_spare_parts_eur?.toString() || "",
+               cantidad_materiales_repuestos: (insuranceData as any).spare_parts_quantity?.toString() || "",
                mo_chapa_ut: insuranceData.bodywork_labor_ut?.toString() || "",
-               mo_chapa_eur: insuranceData.bodywork_labor_eur?.toString() || "",
+               mo_mecanica_eur: insuranceData.bodywork_labor_eur?.toString() || "",
                mo_pintura_ut: insuranceData.painting_labor_ut?.toString() || "",
                mo_pintura_eur: insuranceData.painting_labor_eur?.toString() || "",
                mat_pintura_eur: insuranceData.paint_material_eur?.toString() || "",
                subtotal_neto: insuranceData.net_subtotal?.toString() || "",
                iva_percentage: (insuranceData as any).iva_percentage?.toString() || "",
                iva: insuranceData.iva_amount?.toString() || "",
-               total_con_iva: insuranceData.total_with_iva?.toString() || ""
+               total_con_iva: insuranceData.total_with_iva?.toString() || "",
+               // Nuevos campos de horas convertidas
+               mo_mecanica_horas: (insuranceData as any).bodywork_labor_hours?.toString() || "",
+               mo_pintura_horas: (insuranceData as any).painting_labor_hours?.toString() || "",
+               unidades_detectadas: (insuranceData as any).detected_units || ""
              }
            });
         } else {
@@ -130,8 +190,8 @@ const Verification = () => {
         }
 
       } catch (err) {
-        console.error('Error loading analysis data:', err);
-        setError(err instanceof Error ? err.message : 'Error cargando datos del análisis');
+        const appError = handleError(err, toast, 'loading analysis data');
+        setError(appError.message);
       } finally {
         setIsLoading(false);
       }
@@ -254,20 +314,38 @@ const Verification = () => {
       }
 
       if (num > 100) {
-        errors.push(`${fieldName} no puede ser mayor a 100%`);
+        errors.push(`${fieldName} no puede ser mayor que 100%`);
+        return;
+      }
+    };
+
+    // Helper function to validate license plate format
+    const validateLicensePlate = (value: string, fieldName: string) => {
+      if (!value || value.trim() === '') {
+        errors.push(`${fieldName} es obligatorio`);
+        return;
+      }
+
+      const cleanValue = value.trim().toUpperCase();
+      
+      // Spanish license plate formats
+      const oldFormat = /^[A-Z]{1,2}\d{4}[A-Z]{1,2}$/; // Old format: M1234AB
+      const newFormat = /^\d{4}[A-Z]{3}$/; // New format: 1234ABC
+      
+      if (!oldFormat.test(cleanValue) && !newFormat.test(cleanValue)) {
+        errors.push(`${fieldName} debe tener un formato válido (ej: 1234ABC o M1234AB)`);
         return;
       }
     };
 
     // Validate vehicle data
-    if (!extractedData.metadata.matricula?.trim()) {
-      errors.push('La matrícula es obligatoria');
-    }
+    validateLicensePlate(extractedData.metadata.matricula, 'Matrícula');
 
     // Validate monetary fields
-    validateMonetaryValue(extractedData.metadata.precio_hora, 'Precio por hora');
+    validateMonetaryValue(extractedData.metadata.precio_hora_mecanica, 'Precio por hora - Mecánica');
+    validateMonetaryValue(extractedData.metadata.precio_hora_pintura, 'Precio por hora - Pintura');
     validateMonetaryValue(extractedData.totales.repuestos_total, 'Total Repuestos');
-    validateMonetaryValue(extractedData.totales.mo_chapa_eur, 'M.O. Chapa (€)');
+    validateMonetaryValue(extractedData.totales.mo_mecanica_eur, 'M.O. Mecánica (€)');
     validateMonetaryValue(extractedData.totales.mo_pintura_eur, 'M.O. Pintura (€)');
     validateMonetaryValue(extractedData.totales.mat_pintura_eur, 'Materiales Pintura (€)');
     validateMonetaryValue(extractedData.totales.subtotal_neto, 'Subtotal sin IVA');
@@ -275,9 +353,24 @@ const Verification = () => {
     validateMonetaryValue(extractedData.totales.iva, 'Monto IVA');
     validateMonetaryValue(extractedData.totales.total_con_iva, 'Total con IVA');
 
-    // Validate unit fields (UT)
-    validateUnitValue(extractedData.totales.mo_chapa_ut, 'M.O. Chapa (UT)');
-    validateUnitValue(extractedData.totales.mo_pintura_ut, 'M.O. Pintura (UT)');
+    // Validate hour fields (converted from UT)
+    validateUnitValue(extractedData.totales.mo_mecanica_horas, 'M.O. Mecánica (Horas)');
+    validateUnitValue(extractedData.totales.mo_pintura_horas, 'M.O. Pintura (Horas)');
+
+    // Business logic validation: Check IVA calculation
+    const subtotal = parseFloat(extractedData.totales.subtotal_neto || '0');
+    const iva = parseFloat(extractedData.totales.iva || '0');
+    const ivaPercentage = parseFloat(extractedData.totales.iva_percentage || '21');
+    
+    if (subtotal > 0 && iva > 0) {
+      const expectedIva = subtotal * (ivaPercentage / 100);
+      const difference = Math.abs(iva - expectedIva);
+      const tolerance = Math.max(0.5, subtotal * 0.001); // 0.1% tolerance or minimum 0.5€
+      
+      if (difference > tolerance) {
+        errors.push(`El IVA calculado (${iva.toFixed(2)}€) no coincide con el esperado (${expectedIva.toFixed(2)}€)`);
+      }
+    }
 
     // Cross-validation: Check if totals make sense
     if (extractedData.totales.subtotal_neto && extractedData.totales.iva && extractedData.totales.total_con_iva) {
@@ -317,9 +410,10 @@ const Verification = () => {
 
   const handleSaveChanges = async () => {
     if (!caseId) {
+      const error = createError(ErrorType.VALIDATION_ERROR, "No se encontró el ID del análisis");
       toast({
         title: "Error",
-        description: "No se encontró el ID del análisis",
+        description: error.message,
         variant: "destructive"
       });
       return false;
@@ -328,9 +422,10 @@ const Verification = () => {
     // Validate data before saving
     const validationErrors = validateData();
     if (validationErrors.length > 0) {
+      const error = createError(ErrorType.VALIDATION_ERROR, validationErrors.join('. '));
       toast({
         title: "Error de validación",
-        description: validationErrors.join('. '),
+        description: error.message,
         variant: "destructive"
       });
       return false;
@@ -347,7 +442,7 @@ const Verification = () => {
         model: extractedData.metadata.modelo || null,
         internal_reference: extractedData.metadata.referencia || null,
         system: extractedData.metadata.sistema || null,
-        hourly_price: parseMonetaryValue(extractedData.metadata.precio_hora)
+        hourly_price: parseMonetaryValue(extractedData.metadata.precio_hora_mecanica)
       };
 
       const { error: vehicleError } = await supabase
@@ -356,16 +451,20 @@ const Verification = () => {
         .eq('analysis_id', caseId);
 
       if (vehicleError) {
-        throw new Error(`Error actualizando datos del vehículo: ${vehicleError.message}`);
+        throw createError(ErrorType.DATABASE_ERROR, `Error actualizando datos del vehículo: ${vehicleError.message}`, vehicleError);
       }
 
       // Update insurance_amounts table
       const insuranceUpdateData = {
         total_spare_parts_eur: parseMonetaryValue(extractedData.totales.repuestos_total),
+        spare_parts_quantity: parseMonetaryValue(extractedData.totales.cantidad_materiales_repuestos),
         bodywork_labor_ut: parseMonetaryValue(extractedData.totales.mo_chapa_ut),
-        bodywork_labor_eur: parseMonetaryValue(extractedData.totales.mo_chapa_eur),
+        bodywork_labor_eur: parseMonetaryValue(extractedData.totales.mo_mecanica_eur),
+        bodywork_labor_hours: parseMonetaryValue(extractedData.totales.mo_mecanica_horas),
         painting_labor_ut: parseMonetaryValue(extractedData.totales.mo_pintura_ut),
         painting_labor_eur: parseMonetaryValue(extractedData.totales.mo_pintura_eur),
+        painting_labor_hours: parseMonetaryValue(extractedData.totales.mo_pintura_horas),
+        detected_units: extractedData.totales.unidades_detectadas || null,
         paint_material_eur: parseMonetaryValue(extractedData.totales.mat_pintura_eur),
         net_subtotal: parseMonetaryValue(extractedData.totales.subtotal_neto),
         iva_percentage: parseMonetaryValue(extractedData.totales.iva_percentage),
@@ -379,7 +478,7 @@ const Verification = () => {
         .eq('analysis_id', caseId);
 
       if (insuranceError) {
-        throw new Error(`Error actualizando importes de la aseguradora: ${insuranceError.message}`);
+        throw createError(ErrorType.DATABASE_ERROR, `Error actualizando importes de la aseguradora: ${insuranceError.message}`, insuranceError);
       }
 
       // Update analysis table with valuation_date
@@ -393,7 +492,7 @@ const Verification = () => {
         .eq('id', caseId);
 
       if (analysisError) {
-        throw new Error(`Error actualizando fecha de análisis: ${analysisError.message}`);
+        throw createError(ErrorType.DATABASE_ERROR, `Error actualizando fecha de análisis: ${analysisError.message}`, analysisError);
       }
 
       toast({
@@ -404,12 +503,7 @@ const Verification = () => {
       return true;
 
     } catch (err) {
-      console.error('Error saving changes:', err);
-      toast({
-        title: "Error al guardar",
-        description: err instanceof Error ? err.message : 'Error desconocido al guardar los cambios',
-        variant: "destructive"
-      });
+      handleError(err, toast, 'saving verification changes');
       return false;
     } finally {
       setIsSaving(false);
@@ -640,16 +734,7 @@ const Verification = () => {
               </div>
             </div>
 
-            <div>
-              <Label htmlFor="precio_hora">Precio por hora (€)</Label>
-              <Input
-                id="precio_hora"
-                value={extractedData.metadata.precio_hora}
-                onChange={(e) => handleInputChange('metadata', 'precio_hora', e.target.value)}
-                readOnly={!isEditing}
-                className={!isEditing ? "bg-muted/50" : ""}
-              />
-            </div>
+
           </CardContent>
         </Card>
 
@@ -662,6 +747,29 @@ const Verification = () => {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="precio_hora_mecanica">Precio/hora Mecánica (€)</Label>
+                <Input
+                  id="precio_hora_mecanica"
+                  value={extractedData.metadata.precio_hora_mecanica}
+                  onChange={(e) => handleInputChange('metadata', 'precio_hora_mecanica', e.target.value)}
+                  readOnly={!isEditing}
+                  className={!isEditing ? "bg-muted/50" : ""}
+                />
+              </div>
+              <div>
+                <Label htmlFor="precio_hora_pintura">Precio/hora Pintura (€)</Label>
+                <Input
+                  id="precio_hora_pintura"
+                  value={extractedData.metadata.precio_hora_pintura}
+                  onChange={(e) => handleInputChange('metadata', 'precio_hora_pintura', e.target.value)}
+                  readOnly={!isEditing}
+                  className={!isEditing ? "bg-muted/50" : ""}
+                />
+              </div>
+            </div>
+
             <div>
               <Label htmlFor="repuestos_total">Total Repuestos</Label>
               <div className="relative">
@@ -680,30 +788,42 @@ const Verification = () => {
               </div>
             </div>
 
+            <div>
+              <Label htmlFor="cantidad_materiales_repuestos">Cantidad de materiales/repuestos</Label>
+              <Input
+                id="cantidad_materiales_repuestos"
+                value={extractedData.totales.cantidad_materiales_repuestos}
+                onChange={(e) => handleInputChange('totales', 'cantidad_materiales_repuestos', e.target.value)}
+                readOnly={!isEditing}
+                className={!isEditing ? "bg-muted/50" : ""}
+                placeholder="Número de elementos"
+              />
+            </div>
+
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="mo_chapa_ut">M.O. Chapa (UT)</Label>
+                <Label htmlFor="mo_mecanica_horas">M.O. Mecánica (Horas)</Label>
                 <Input
-                  id="mo_chapa_ut"
-                  value={extractedData.totales.mo_chapa_ut}
-                  onChange={(e) => handleInputChange('totales', 'mo_chapa_ut', e.target.value)}
+                  id="mo_mecanica_horas"
+                  value={extractedData.totales.mo_mecanica_horas}
+                  onChange={(e) => handleInputChange('totales', 'mo_mecanica_horas', e.target.value)}
                   readOnly={!isEditing}
                   className={!isEditing ? "bg-muted/50" : ""}
                 />
               </div>
               <div>
-                <Label htmlFor="mo_chapa_eur">M.O. Chapa (€)</Label>
+                <Label htmlFor="mo_mecanica_eur">M.O. Mecánica (€)</Label>
                 <div className="relative">
                   <Input
-                    id="mo_chapa_eur"
-                    value={extractedData.totales.mo_chapa_eur}
-                    onChange={(e) => handleInputChange('totales', 'mo_chapa_eur', e.target.value)}
+                    id="mo_mecanica_eur"
+                    value={extractedData.totales.mo_mecanica_eur}
+                    onChange={(e) => handleInputChange('totales', 'mo_mecanica_eur', e.target.value)}
                     readOnly={!isEditing}
                     className={!isEditing ? "bg-muted/50" : ""}
                   />
                   {!isEditing && (
                     <div className="absolute right-3 top-2.5 text-sm text-muted-foreground">
-                      {formatCurrency(extractedData.totales.mo_chapa_eur)}
+                      {formatCurrency(extractedData.totales.mo_mecanica_eur)}
                     </div>
                   )}
                 </div>
@@ -712,11 +832,11 @@ const Verification = () => {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="mo_pintura_ut">M.O. Pintura (UT)</Label>
+                <Label htmlFor="mo_pintura_horas">M.O. Pintura (Horas)</Label>
                 <Input
-                  id="mo_pintura_ut"
-                  value={extractedData.totales.mo_pintura_ut}
-                  onChange={(e) => handleInputChange('totales', 'mo_pintura_ut', e.target.value)}
+                  id="mo_pintura_horas"
+                  value={extractedData.totales.mo_pintura_horas}
+                  onChange={(e) => handleInputChange('totales', 'mo_pintura_horas', e.target.value)}
                   readOnly={!isEditing}
                   className={!isEditing ? "bg-muted/50" : ""}
                 />

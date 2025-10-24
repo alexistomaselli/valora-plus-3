@@ -1,17 +1,68 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Mail, ArrowLeft, TrendingUp, TrendingDown, Minus, FileText, Share2, Loader2, AlertCircle } from "lucide-react";
+import { Download, ArrowLeft, TrendingUp, TrendingDown, Minus, FileText, Share2, Loader2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
+
+// Error types for better error handling
+enum ErrorType {
+  NETWORK_ERROR = 'NETWORK_ERROR',
+  DATABASE_ERROR = 'DATABASE_ERROR',
+  VALIDATION_ERROR = 'VALIDATION_ERROR',
+  PDF_GENERATION_ERROR = 'PDF_GENERATION_ERROR',
+  UNKNOWN_ERROR = 'UNKNOWN_ERROR'
+}
+
+interface AppError {
+  type: ErrorType;
+  message: string;
+  originalError?: any;
+}
+
+// Helper function to create standardized errors
+const createError = (type: ErrorType, message: string, originalError?: any): AppError => ({
+  type,
+  message,
+  originalError
+});
+
+// Helper function to handle errors consistently
+const handleError = (error: any, toast: any): void => {
+  console.error('Error details:', error);
+  
+  let errorMessage = 'Ha ocurrido un error inesperado';
+  
+  if (error?.type) {
+    // It's our custom AppError
+    errorMessage = error.message;
+  } else if (error?.message?.includes('fetch')) {
+    errorMessage = 'Error de conexión. Verifica tu conexión a internet.';
+  } else if (error?.code?.startsWith('PGRST')) {
+    errorMessage = 'Error en la base de datos. Inténtalo de nuevo.';
+  } else if (error?.message) {
+    errorMessage = error.message;
+  }
+  
+  toast({
+    title: "Error",
+    description: errorMessage,
+    variant: "destructive",
+  });
+};
 
 interface MargenDetallado {
   ingresos: number;
   costes: number;
   margen: number;
+  // Información específica para repuestos
+  cantidad_materiales?: number;
+  beneficio_medio_por_material?: number;
 }
 
 interface ResultsData {
@@ -31,17 +82,20 @@ interface ResultsData {
     mo_chapa: MargenDetallado;
     mo_pintura: MargenDetallado;
     mat_pintura: MargenDetallado;
+    subcontratistas: MargenDetallado;
+    otros_costos: MargenDetallado;
   };
 }
 
 const Results = () => {
   const { caseId } = useParams<{ caseId: string }>();
   const [isDownloading, setIsDownloading] = useState(false);
-  const [isSending, setIsSending] = useState(false);
+
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ResultsData | null>(null);
   const { toast } = useToast();
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const loadAnalysisData = async () => {
@@ -89,17 +143,32 @@ const Results = () => {
         if (workshopError) throw workshopError;
 
         // Calculate results
-        const calculatedResults = calculateProfitability(
-          analysis,
-          vehicleData,
-          insuranceAmounts,
-          workshopCosts
-        );
-
-        setResults(calculatedResults);
+        try {
+          const calculatedResults = calculateProfitability(
+            analysis,
+            vehicleData,
+            insuranceAmounts,
+            workshopCosts
+          );
+          setResults(calculatedResults);
+        } catch (calculationError: any) {
+          // Handle validation errors from calculateProfitability
+          if (calculationError.type === ErrorType.VALIDATION_ERROR) {
+            handleError(calculationError, toast);
+            setError(calculationError.message);
+            return;
+          }
+          // Re-throw other errors to be handled by outer catch
+          throw calculationError;
+        }
       } catch (error) {
-        console.error('Error loading analysis data:', error);
-        setError('Error al cargar los datos del análisis');
+        const appError = createError(
+          ErrorType.DATABASE_ERROR,
+          'Error al cargar los datos del análisis. Verifica que el análisis existe y está completo.',
+          error
+        );
+        handleError(appError, toast);
+        setError(appError.message);
       } finally {
         setIsLoading(false);
       }
@@ -108,62 +177,143 @@ const Results = () => {
     loadAnalysisData();
   }, [caseId]);
 
+
+
   const calculateProfitability = (analysis: any, vehicleData: any, insuranceAmounts: any, workshopCosts: any): ResultsData => {
-    // Calculate total income (from insurance)
-    const ingresos_totales = insuranceAmounts.total_with_iva || 0;
+    // Validate required data
+    if (!analysis || !vehicleData || !insuranceAmounts || !workshopCosts) {
+      throw createError(
+        ErrorType.VALIDATION_ERROR,
+        'Faltan datos necesarios para calcular la rentabilidad'
+      );
+    }
 
-    // Calculate total costs (from workshop)
-    const costes_repuestos = workshopCosts.spare_parts_purchase_cost || 0;
-    const costes_mo_chapa = (workshopCosts.bodywork_actual_hours || 0) * (workshopCosts.bodywork_hourly_cost || 0);
-    const costes_mo_pintura = (workshopCosts.painting_actual_hours || 0) * (workshopCosts.painting_hourly_cost || 0);
-    const costes_mat_pintura = workshopCosts.painting_consumables_cost || 0;
-    const costes_otros = (workshopCosts.subcontractor_costs || 0) + (workshopCosts.other_costs || 0);
+    // Helper function to safely parse numeric values
+    const safeParseFloat = (value: any): number => {
+      if (value === null || value === undefined || value === '') return 0;
+      const parsed = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : parseFloat(value);
+      return isNaN(parsed) ? 0 : Math.round(parsed * 100) / 100; // Round to 2 decimals
+    };
 
-    const costes_totales = costes_repuestos + costes_mo_chapa + costes_mo_pintura + costes_mat_pintura + costes_otros;
+    // Calculate total income (from insurance) with validation
+    const ingresos_totales = safeParseFloat(insuranceAmounts.total_with_iva);
+    
+    if (ingresos_totales <= 0) {
+      throw createError(
+        ErrorType.VALIDATION_ERROR,
+        'El importe total de la aseguradora debe ser mayor que 0'
+      );
+    }
 
-    // Calculate margins
-    const margen_eur = ingresos_totales - costes_totales;
-    const margen_pct = ingresos_totales > 0 ? (margen_eur / ingresos_totales) * 100 : 0;
+    // Calculate total costs (from workshop) with improved precision
+    const costes_repuestos = safeParseFloat(workshopCosts.spare_parts_purchase_cost);
+    const horas_chapa = safeParseFloat(workshopCosts.bodywork_actual_hours);
+    const precio_hora_chapa = safeParseFloat(workshopCosts.bodywork_hourly_cost);
+    const costes_mo_chapa = Math.round((horas_chapa * precio_hora_chapa) * 100) / 100;
+    
+    const horas_pintura = safeParseFloat(workshopCosts.painting_actual_hours);
+    const precio_hora_pintura = safeParseFloat(workshopCosts.painting_hourly_cost);
+    const costes_mo_pintura = Math.round((horas_pintura * precio_hora_pintura) * 100) / 100;
+    
+    const costes_mat_pintura = safeParseFloat(workshopCosts.painting_consumables_cost);
+    const costes_subcontratas = safeParseFloat(workshopCosts.subcontractor_costs);
+    const costes_otros = safeParseFloat(workshopCosts.other_costs);
 
-    // Calculate detailed margins (approximate distribution from insurance amounts)
-    const ingresos_repuestos = insuranceAmounts.total_spare_parts_eur || 0;
-    const ingresos_mo_chapa = insuranceAmounts.bodywork_labor_eur || 0;
-    const ingresos_mo_pintura = insuranceAmounts.painting_labor_eur || 0;
-    const ingresos_mat_pintura = insuranceAmounts.paint_material_eur || 0;
+    // Calculate total costs with precision
+    const costes_totales = Math.round((
+      costes_repuestos + 
+      costes_mo_chapa + 
+      costes_mo_pintura + 
+      costes_mat_pintura + 
+      costes_subcontratas + 
+      costes_otros
+    ) * 100) / 100;
+
+    // Validate total costs
+    if (costes_totales < 0) {
+      throw createError(
+        ErrorType.VALIDATION_ERROR,
+        'Los costos totales no pueden ser negativos'
+      );
+    }
+
+    if (costes_totales === 0) {
+      console.warn('Warning: Total costs are zero. This may indicate missing cost data.');
+    }
+
+    // Calculate margins with improved precision
+    const margen_eur = Math.round((ingresos_totales - costes_totales) * 100) / 100;
+    const margen_pct = ingresos_totales > 0 ? 
+      Math.round((margen_eur / ingresos_totales) * 10000) / 100 : 0; // Round to 2 decimals
+
+    // Calculate detailed margins with validation
+    const ingresos_repuestos = safeParseFloat(insuranceAmounts.total_spare_parts_eur);
+    const ingresos_mo_chapa = safeParseFloat(insuranceAmounts.bodywork_labor_eur);
+    const ingresos_mo_pintura = safeParseFloat(insuranceAmounts.painting_labor_eur);
+    const ingresos_mat_pintura = safeParseFloat(insuranceAmounts.paint_material_eur);
+
+    // Validation: Check if detailed income adds up to total (with tolerance for rounding)
+    const suma_ingresos_detallados = ingresos_repuestos + ingresos_mo_chapa + ingresos_mo_pintura + ingresos_mat_pintura;
+    const diferencia_ingresos = Math.abs(suma_ingresos_detallados - ingresos_totales);
+    
+    if (diferencia_ingresos > 1) { // Tolerance of 1 euro for rounding differences
+      console.warn('Warning: Detailed income does not match total income:', {
+        detailed: suma_ingresos_detallados,
+        total: ingresos_totales,
+        difference: diferencia_ingresos
+      });
+    }
+
+    // Helper function to calculate detailed margin
+    const calculateDetailedMargin = (ingresos: number, costes: number) => ({
+      ingresos: Math.round(ingresos * 100) / 100,
+      costes: Math.round(costes * 100) / 100,
+      margen: Math.round((ingresos - costes) * 100) / 100
+    });
+
+    // Helper function to calculate detailed margin for spare parts with additional info
+    const calculateSparePartsMargin = (ingresos: number, costes: number, cantidadMateriales: number) => {
+      const margen = Math.round((ingresos - costes) * 100) / 100;
+      const beneficioMedioPorMaterial = cantidadMateriales > 0 ? 
+        Math.round((margen / cantidadMateriales) * 100) / 100 : 0;
+      
+      return {
+        ingresos: Math.round(ingresos * 100) / 100,
+        costes: Math.round(costes * 100) / 100,
+        margen,
+        cantidad_materiales: cantidadMateriales,
+        beneficio_medio_por_material: beneficioMedioPorMaterial
+      };
+    };
+
+    // Get spare parts quantity from insurance amounts
+    const cantidadMaterialesRepuestos = safeParseFloat(insuranceAmounts.spare_parts_quantity) || 0;
+
+    // Get workshop name from profile or use default
+    const getWorkshopName = () => {
+      // TODO: Implement workshop name retrieval from user profile or workshop table
+      return 'Taller'; // Placeholder
+    };
 
     return {
-      case_id: caseId,
+      case_id: caseId || 'N/A',
       metadata: {
-        matricula: vehicleData.license_plate || 'N/A',
-        referencia: analysis.reference_number || 'N/A',
-        fecha: analysis.created_at ? new Date(analysis.created_at).toLocaleDateString('es-ES') : 'N/A',
-        taller: 'Taller' // TODO: Get from workshop data
+        matricula: vehicleData?.license_plate || 'N/A',
+        referencia: analysis?.reference_number || vehicleData?.internal_reference || 'N/A',
+        fecha: analysis?.created_at ? new Date(analysis.created_at).toLocaleDateString('es-ES') : 'N/A',
+        taller: getWorkshopName()
       },
       ingresos_totales,
       costes_totales,
       margen_eur,
       margen_pct,
       margen_detallado: {
-        repuestos: { 
-          ingresos: ingresos_repuestos, 
-          costes: costes_repuestos, 
-          margen: ingresos_repuestos - costes_repuestos 
-        },
-        mo_chapa: { 
-          ingresos: ingresos_mo_chapa, 
-          costes: costes_mo_chapa, 
-          margen: ingresos_mo_chapa - costes_mo_chapa 
-        },
-        mo_pintura: { 
-          ingresos: ingresos_mo_pintura, 
-          costes: costes_mo_pintura, 
-          margen: ingresos_mo_pintura - costes_mo_pintura 
-        },
-        mat_pintura: { 
-          ingresos: ingresos_mat_pintura, 
-          costes: costes_mat_pintura, 
-          margen: ingresos_mat_pintura - costes_mat_pintura 
-        }
+        repuestos: calculateSparePartsMargin(ingresos_repuestos, costes_repuestos, cantidadMaterialesRepuestos),
+        mo_chapa: calculateDetailedMargin(ingresos_mo_chapa, costes_mo_chapa),
+        mo_pintura: calculateDetailedMargin(ingresos_mo_pintura, costes_mo_pintura),
+        mat_pintura: calculateDetailedMargin(ingresos_mat_pintura, costes_mat_pintura),
+        subcontratistas: calculateDetailedMargin(0, costes_subcontratas),
+        otros_costos: calculateDetailedMargin(0, costes_otros)
       }
     };
   };
@@ -192,30 +342,64 @@ const Results = () => {
   };
 
   const handleDownloadPDF = async () => {
+    if (!results) {
+      toast({
+        title: "Error",
+        description: "No se puede generar el PDF en este momento",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsDownloading(true);
     
-    // Simulate PDF generation
-    setTimeout(() => {
-      setIsDownloading(false);
+    try {
+      // Generar nombre del archivo
+      const fileName = `analisis_${results.metadata.matricula}_${results.metadata.referencia}_${new Date().toISOString().split('T')[0]}.pdf`;
+      
+      // Configurar el título del documento para la impresión
+      const originalTitle = document.title;
+      document.title = fileName;
+      
+      // Aplicar clase para estilos de impresión
+      document.body.classList.add('print-mode');
+      
+      // Esperar un momento para que los estilos se apliquen
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Usar la API de impresión del navegador pero interceptar para guardar como PDF
+      if (window.navigator.userAgent.includes('Chrome') || window.navigator.userAgent.includes('Edge')) {
+        // Para navegadores basados en Chromium, usar window.print() directamente
+        // El usuario podrá elegir "Guardar como PDF" en el diálogo de impresión
+        window.print();
+      } else {
+        // Fallback para otros navegadores
+        window.print();
+      }
+      
+      // Restaurar el título original después de un momento
+      setTimeout(() => {
+        document.title = originalTitle;
+        document.body.classList.remove('print-mode');
+      }, 1000);
+      
       toast({
-        title: "PDF generado",
-        description: "El informe se ha descargado correctamente.",
+        title: "Diálogo de impresión abierto",
+        description: "Selecciona 'Guardar como PDF' en el diálogo de impresión",
       });
-    }, 2000);
+    } catch (error) {
+      const appError = createError(
+        ErrorType.PDF_GENERATION_ERROR,
+        'Error al abrir el diálogo de impresión. Inténtalo de nuevo.',
+        error
+      );
+      handleError(appError, toast);
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
-  const handleSendEmail = async () => {
-    setIsSending(true);
-    
-    // Simulate email sending
-    setTimeout(() => {
-      setIsSending(false);
-      toast({
-        title: "Email enviado",
-        description: "El informe se ha enviado a tu correo electrónico.",
-      });
-    }, 1500);
-  };
+
 
   // Loading state
   if (isLoading) {
@@ -279,9 +463,9 @@ const Results = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div ref={contentRef} className="max-w-6xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-8 noprint">
         <div>
           <h1 className="text-3xl font-bold text-foreground mb-2">
             Análisis de Rentabilidad
@@ -290,21 +474,14 @@ const Results = () => {
             Expediente {results.metadata.referencia} • {results.metadata.matricula}
           </p>
         </div>
-        <div className="flex items-center space-x-4">
+        <div className="flex items-center space-x-4 no-pdf">
           <Link to="/app/costes/demo-case-id">
             <Button variant="outline">
               <ArrowLeft className="mr-2 h-4 w-4" />
               Atrás
             </Button>
           </Link>
-          <Button 
-            onClick={handleSendEmail}
-            disabled={isSending}
-            variant="outline"
-          >
-            <Mail className="mr-2 h-4 w-4" />
-            {isSending ? 'Enviando...' : 'Enviar por Email'}
-          </Button>
+
           <Button 
             onClick={handleDownloadPDF}
             disabled={isDownloading}
@@ -316,6 +493,16 @@ const Results = () => {
         </div>
       </div>
 
+      {/* Título solo para impresión */}
+      <div className="hidden print:block mb-8">
+        <h1 className="text-2xl font-bold text-foreground mb-2">
+          Análisis de Rentabilidad
+        </h1>
+        <p className="text-base text-muted-foreground">
+          Expediente {results.metadata.referencia} • {results.metadata.matricula}
+        </p>
+      </div>
+
       {/* Key metrics */}
       <div className="grid md:grid-cols-3 gap-6 mb-8">
         <Card className="bg-gradient-card border-border/50">
@@ -324,7 +511,7 @@ const Results = () => {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Ingresos Totales</p>
                 <p className="text-2xl font-bold text-foreground">{formatCurrency(results.ingresos_totales)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Importe aseguradora (sin IVA)</p>
+                <p className="text-xs text-muted-foreground mt-1">Importe aseguradora (Bruto)</p>
               </div>
               <div className="p-3 bg-primary/10 rounded-full">
                 <TrendingUp className="h-6 w-6 text-primary" />
@@ -372,8 +559,8 @@ const Results = () => {
       </div>
 
       {/* Detailed breakdown */}
-      <div className="grid lg:grid-cols-2 gap-6 mb-8">
-        {/* Breakdown table */}
+      <div className="space-y-6 mb-8">
+        {/* Breakdown table - Full width */}
         <Card>
           <CardHeader>
             <CardTitle>Desglose por Concepto</CardTitle>
@@ -382,13 +569,15 @@ const Results = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
               {Object.entries(results.margen_detallado).map(([key, data]) => {
                 const titles = {
                   repuestos: 'Repuestos',
                   mo_chapa: 'M.O. Chapa',
                   mo_pintura: 'M.O. Pintura',
-                  mat_pintura: 'Mat. Pintura'
+                  mat_pintura: 'Mat. Pintura',
+                  subcontratistas: 'Subcontratistas',
+                  otros_costos: 'Otros Costos'
                 };
                 
                 const marginPct = data.ingresos > 0 ? (data.margen / data.ingresos) * 100 : 0;
@@ -400,25 +589,43 @@ const Results = () => {
                         {titles[key as keyof typeof titles]}
                       </h4>
                       <Badge variant={marginPct > 30 ? "default" : marginPct > 15 ? "secondary" : "destructive"}>
-                        {formatPercentage(marginPct)}
+                        {data.ingresos > 0 ? formatPercentage(marginPct) : 'Solo costos'}
                       </Badge>
                     </div>
-                    <div className="grid grid-cols-3 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Ingresos</p>
-                        <p className="font-medium">{formatCurrency(data.ingresos)}</p>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Ingresos</span>
+                        <span className="font-medium">{formatCurrency(data.ingresos)}</span>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground">Costes</p>
-                        <p className="font-medium">{formatCurrency(data.costes)}</p>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Costes</span>
+                        <span className="font-medium">{formatCurrency(data.costes)}</span>
                       </div>
-                      <div>
-                        <p className="text-muted-foreground">Margen</p>
-                        <p className={`font-medium ${data.margen >= 0 ? 'text-success' : 'text-destructive'}`}>
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Margen</span>
+                        <span className={`font-medium ${data.margen >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           {formatCurrency(data.margen)}
-                        </p>
+                        </span>
                       </div>
                     </div>
+                    
+                    {/* Información adicional para repuestos */}
+                    {key === 'repuestos' && data.cantidad_materiales !== undefined && data.beneficio_medio_por_material !== undefined && (
+                      <div className="mt-3 pt-3 border-t border-border/50">
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Cantidad de materiales</span>
+                            <span className="font-medium">{data.cantidad_materiales} piezas</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Beneficio medio por material</span>
+                            <span className={`font-medium ${data.beneficio_medio_por_material >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {formatCurrency(data.beneficio_medio_por_material)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -426,7 +633,7 @@ const Results = () => {
           </CardContent>
         </Card>
 
-        {/* Visual representation */}
+        {/* Visual representation - Full width below */}
         <Card>
           <CardHeader>
             <CardTitle>Distribución de Márgenes</CardTitle>
@@ -441,30 +648,35 @@ const Results = () => {
                   repuestos: 'Repuestos',
                   mo_chapa: 'M.O. Chapa',
                   mo_pintura: 'M.O. Pintura',
-                  mat_pintura: 'Mat. Pintura'
+                  mat_pintura: 'Mat. Pintura',
+                  subcontratistas: 'Subcontratistas',
+                  otros_costos: 'Otros Costos'
                 };
                 
                 const marginPct = data.ingresos > 0 ? (data.margen / data.ingresos) * 100 : 0;
-                const barWidth = Math.max(marginPct, 5); // Minimum 5% for visibility
+                const barWidth = Math.max(Math.abs(marginPct), 5); // Minimum 5% for visibility
                 
                 return (
                   <div key={key} className="space-y-2">
                     <div className="flex justify-between text-sm">
                       <span className="font-medium">{titles[key as keyof typeof titles]}</span>
-                      <span className="text-muted-foreground">{formatCurrency(data.margen)}</span>
+                      <span className={`text-muted-foreground ${data.margen >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {formatCurrency(data.margen)}
+                      </span>
                     </div>
                     <div className="w-full bg-muted rounded-full h-3">
                       <div 
                         className={`h-3 rounded-full transition-all duration-500 ${
                           marginPct > 30 ? 'bg-gradient-success' : 
                           marginPct > 15 ? 'bg-gradient-primary' : 
-                          'bg-destructive'
+                          marginPct >= 0 ? 'bg-yellow-500' :
+                          'bg-red-500'
                         }`}
                         style={{ width: `${Math.min(barWidth, 100)}%` }}
                       />
                     </div>
                     <div className="text-xs text-muted-foreground">
-                      {formatPercentage(marginPct)} de rentabilidad
+                      {data.ingresos > 0 ? formatPercentage(marginPct) + ' de rentabilidad' : 'Solo costos'}
                     </div>
                   </div>
                 );

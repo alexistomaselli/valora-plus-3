@@ -7,6 +7,54 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
+// Error types for better error handling
+enum ErrorType {
+  DATABASE_ERROR = 'database_error',
+  NETWORK_ERROR = 'network_error',
+  VALIDATION_ERROR = 'validation_error',
+  PAYMENT_ERROR = 'payment_error',
+  UNKNOWN_ERROR = 'unknown_error'
+}
+
+interface AppError {
+  type: ErrorType;
+  message: string;
+  originalError?: any;
+}
+
+// Helper function to create standardized errors
+const createError = (type: ErrorType, message: string, originalError?: any): AppError => ({
+  type,
+  message,
+  originalError
+});
+
+// Helper function to handle errors consistently
+const handleError = (error: any, toast: any): void => {
+  console.error('Error details:', error);
+  
+  let errorMessage = 'Ha ocurrido un error inesperado';
+  
+  if (error?.type) {
+    // It's our custom AppError
+    errorMessage = error.message;
+  } else if (error?.message?.includes('fetch') || error?.message?.includes('network')) {
+    errorMessage = 'Error de conexión. Verifica tu conexión a internet.';
+  } else if (error?.code?.startsWith('PGRST') || error?.message?.includes('database')) {
+    errorMessage = 'Error en la base de datos. Inténtalo de nuevo.';
+  } else if (error?.message?.includes('payment') || error?.message?.includes('stripe')) {
+    errorMessage = 'Error al verificar el pago. Contacta con soporte si el problema persiste.';
+  } else if (error?.message) {
+    errorMessage = error.message;
+  }
+  
+  toast({
+    title: "Error",
+    description: errorMessage,
+    variant: "destructive",
+  });
+};
+
 const PaymentSuccess = () => {
   const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(true);
@@ -33,22 +81,22 @@ const PaymentSuccess = () => {
           .single();
 
         if (error) {
-          console.error('Error verificando pago:', error);
-          toast({
-            title: "Error",
-            description: "No se pudo verificar el estado del pago.",
-            variant: "destructive"
-          });
+          const appError = createError(
+            ErrorType.DATABASE_ERROR,
+            'No se pudo verificar el estado del pago en la base de datos.',
+            error
+          );
+          handleError(appError, toast);
         } else {
           setPaymentDetails(payment);
         }
       } catch (error) {
-        console.error('Error:', error);
-        toast({
-          title: "Error",
-          description: "Ocurrió un error al verificar el pago.",
-          variant: "destructive"
-        });
+        const appError = createError(
+          ErrorType.PAYMENT_ERROR,
+          'Ocurrió un error al verificar el pago. Contacta con soporte si el problema persiste.',
+          error
+        );
+        handleError(appError, toast);
       } finally {
         setIsLoading(false);
       }

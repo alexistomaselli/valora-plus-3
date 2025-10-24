@@ -10,6 +10,57 @@ import { useToast } from "@/hooks/use-toast";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
 
+// Error types for better error handling
+enum ErrorType {
+  VALIDATION_ERROR = 'validation_error',
+  DATABASE_ERROR = 'database_error',
+  NETWORK_ERROR = 'network_error',
+  AUTHENTICATION_ERROR = 'authentication_error',
+  UNKNOWN_ERROR = 'unknown_error'
+}
+
+interface AppError {
+  type: ErrorType;
+  message: string;
+  originalError?: Error;
+}
+
+// Helper function to create standardized errors
+const createError = (type: ErrorType, message: string, originalError?: Error): AppError => ({
+  type,
+  message,
+  originalError
+});
+
+// Helper function to handle errors consistently
+const handleError = (error: unknown, toast: any, context: string = '') => {
+  console.error(`Error in ${context}:`, error);
+  
+  let appError: AppError;
+  
+  if (error instanceof Error) {
+    if (error.message.includes('network') || error.message.includes('fetch')) {
+      appError = createError(ErrorType.NETWORK_ERROR, 'Error de conexión. Verifica tu conexión a internet.', error);
+    } else if (error.message.includes('database') || error.message.includes('supabase') || error.message.includes('PGRST')) {
+      appError = createError(ErrorType.DATABASE_ERROR, 'Error en la base de datos. Inténtalo de nuevo.', error);
+    } else if (error.message.includes('auth') || error.message.includes('session')) {
+      appError = createError(ErrorType.AUTHENTICATION_ERROR, 'Sesión expirada. Por favor, inicia sesión nuevamente.', error);
+    } else {
+      appError = createError(ErrorType.UNKNOWN_ERROR, error.message, error);
+    }
+  } else {
+    appError = createError(ErrorType.UNKNOWN_ERROR, 'Error desconocido. Inténtalo de nuevo.');
+  }
+  
+  toast({
+    title: "Error",
+    description: appError.message,
+    variant: "destructive"
+  });
+  
+  return appError;
+};
+
 const WorkshopCosts = () => {
   const { caseId } = useParams<{ caseId: string }>();
   const { toast } = useToast();
@@ -41,9 +92,10 @@ const WorkshopCosts = () => {
         // Ensure user is authenticated
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
+          const error = createError(ErrorType.AUTHENTICATION_ERROR, "Sesión expirada. Por favor, inicia sesión nuevamente.");
           toast({
             title: "Sesión expirada",
-            description: "Por favor, inicia sesión nuevamente.",
+            description: error.message,
             variant: "destructive"
           });
           setIsLoading(false);
@@ -59,15 +111,16 @@ const WorkshopCosts = () => {
         if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
           // Handle specific error cases
           if (error.message?.includes('406') || error.message?.includes('Not Acceptable')) {
+            const appError = createError(ErrorType.DATABASE_ERROR, "Problema de autenticación con la base de datos. Intenta recargar la página.", error);
             toast({
               title: "Error de configuración",
-              description: "Problema de autenticación con la base de datos. Intenta recargar la página.",
+              description: appError.message,
               variant: "destructive"
             });
             return;
           }
           
-          throw error;
+          throw createError(ErrorType.DATABASE_ERROR, `Error cargando datos: ${error.message}`, error);
         }
 
         if (data) {
@@ -89,12 +142,7 @@ const WorkshopCosts = () => {
           setHasExistingCalculation(false);
         }
       } catch (error) {
-        console.error('Error loading workshop costs:', error);
-        toast({
-          title: "Error",
-          description: "No se pudieron cargar los datos existentes.",
-          variant: "destructive"
-        });
+        handleError(error, toast, 'loading workshop costs');
       } finally {
         setIsLoading(false);
       }
@@ -114,21 +162,124 @@ const WorkshopCosts = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
-    // Required fields
-    const requiredFields = [
-      'repuestos_compra',
-      'mo_chapa_horas_reales', 
-      'mo_chapa_coste_hora',
-      'mo_pintura_horas_reales',
-      'mo_pintura_coste_hora',
-      'consumibles_pintura'
-    ];
+    // Helper function to safely parse numeric values
+    const safeParseFloat = (value: string): number => {
+      if (!value || value.trim() === '') return 0;
+      const parsed = typeof value === 'string' ? parseFloat(value.replace(',', '.')) : parseFloat(value);
+      return isNaN(parsed) ? 0 : parsed;
+    };
 
-    requiredFields.forEach(field => {
-      if (!costs[field as keyof typeof costs] || parseFloat(costs[field as keyof typeof costs]) < 0) {
-        newErrors[field] = "Este campo es obligatorio y debe ser mayor o igual a 0";
+    // Helper function to validate monetary values
+    const validateMonetaryValue = (value: string, fieldName: string, fieldKey: string) => {
+      if (!value || value.trim() === '') {
+        newErrors[fieldKey] = `${fieldName} es obligatorio`;
+        return;
       }
-    });
+
+      const cleanValue = value.trim().replace(',', '.');
+      const num = parseFloat(cleanValue);
+      
+      if (isNaN(num)) {
+        newErrors[fieldKey] = `${fieldName} debe ser un número válido`;
+        return;
+      }
+
+      if (num < 0) {
+        newErrors[fieldKey] = `${fieldName} no puede ser negativo`;
+        return;
+      }
+
+      if (num > 999999.99) {
+        newErrors[fieldKey] = `${fieldName} excede el límite máximo permitido`;
+        return;
+      }
+
+      // Check decimal places
+      const decimalPart = cleanValue.split('.')[1];
+      if (decimalPart && decimalPart.length > 2) {
+        newErrors[fieldKey] = `${fieldName} no puede tener más de 2 decimales`;
+        return;
+      }
+    };
+
+    // Helper function to validate hour values
+    const validateHourValue = (value: string, fieldName: string, fieldKey: string) => {
+      if (!value || value.trim() === '') {
+        newErrors[fieldKey] = `${fieldName} es obligatorio`;
+        return;
+      }
+
+      const cleanValue = value.trim().replace(',', '.');
+      const num = parseFloat(cleanValue);
+      
+      if (isNaN(num)) {
+        newErrors[fieldKey] = `${fieldName} debe ser un número válido`;
+        return;
+      }
+
+      if (num < 0) {
+        newErrors[fieldKey] = `${fieldName} no puede ser negativo`;
+        return;
+      }
+
+      if (num > 9999.99) {
+        newErrors[fieldKey] = `${fieldName} excede el límite máximo de horas permitido`;
+        return;
+      }
+
+      // Check decimal places
+      const decimalPart = cleanValue.split('.')[1];
+      if (decimalPart && decimalPart.length > 2) {
+        newErrors[fieldKey] = `${fieldName} no puede tener más de 2 decimales`;
+        return;
+      }
+    };
+
+    // Validate monetary fields
+    validateMonetaryValue(costs.repuestos_compra, 'Repuestos y Materiales', 'repuestos_compra');
+    validateMonetaryValue(costs.mo_chapa_coste_hora, 'Coste por hora M.O. Chapa', 'mo_chapa_coste_hora');
+    validateMonetaryValue(costs.mo_pintura_coste_hora, 'Coste por hora M.O. Pintura', 'mo_pintura_coste_hora');
+    validateMonetaryValue(costs.consumibles_pintura, 'Consumibles Pintura', 'consumibles_pintura');
+    validateMonetaryValue(costs.subcontratas, 'Subcontratas', 'subcontratas');
+    validateMonetaryValue(costs.otros_costes, 'Otros Costes', 'otros_costes');
+
+    // Validate hour fields
+    validateHourValue(costs.mo_chapa_horas_reales, 'Horas reales M.O. Chapa', 'mo_chapa_horas_reales');
+    validateHourValue(costs.mo_pintura_horas_reales, 'Horas reales M.O. Pintura', 'mo_pintura_horas_reales');
+
+    // Business logic validations
+    const repuestosValue = safeParseFloat(costs.repuestos_compra);
+    const chapaHours = safeParseFloat(costs.mo_chapa_horas_reales);
+    const chapaCost = safeParseFloat(costs.mo_chapa_coste_hora);
+    const pinturaHours = safeParseFloat(costs.mo_pintura_horas_reales);
+    const pinturaCost = safeParseFloat(costs.mo_pintura_coste_hora);
+    const consumibles = safeParseFloat(costs.consumibles_pintura);
+
+    // Check if at least one cost category has a value
+    const totalCosts = repuestosValue + (chapaHours * chapaCost) + (pinturaHours * pinturaCost) + consumibles + 
+                      safeParseFloat(costs.subcontratas) + safeParseFloat(costs.otros_costes);
+
+    if (totalCosts <= 0) {
+      newErrors.general = 'Debe introducir al menos un coste mayor que 0';
+    }
+
+    // Validate reasonable hour rates
+    if (chapaCost > 0 && (chapaCost < 10 || chapaCost > 200)) {
+      newErrors.mo_chapa_coste_hora = 'El coste por hora de chapa parece fuera del rango normal (10-200€/h)';
+    }
+
+    if (pinturaCost > 0 && (pinturaCost < 10 || pinturaCost > 200)) {
+      newErrors.mo_pintura_coste_hora = 'El coste por hora de pintura parece fuera del rango normal (10-200€/h)';
+    }
+
+    // Validate reasonable hours
+    if (chapaHours > 500) {
+      newErrors.mo_chapa_horas_reales = 'Las horas de chapa parecen excesivamente altas';
+    }
+
+    if (pinturaHours > 500) {
+      newErrors.mo_pintura_horas_reales = 'Las horas de pintura parecen excesivamente altas';
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -146,18 +297,20 @@ const WorkshopCosts = () => {
     }
 
     if (!validateForm()) {
+      const error = createError(ErrorType.VALIDATION_ERROR, "Por favor, corrige los errores marcados en rojo.");
       toast({
         title: "Errores en el formulario",
-        description: "Por favor, corrige los errores marcados en rojo.",
+        description: error.message,
         variant: "destructive"
       });
       return;
     }
 
     if (!caseId) {
+      const error = createError(ErrorType.VALIDATION_ERROR, "No se encontró el ID del análisis.");
       toast({
         title: "Error",
-        description: "No se encontró el ID del análisis.",
+        description: error.message,
         variant: "destructive"
       });
       return;
@@ -183,7 +336,7 @@ const WorkshopCosts = () => {
         });
 
       if (error) {
-        throw error;
+        throw createError(ErrorType.DATABASE_ERROR, `Error guardando datos: ${error.message}`, error);
       }
 
       // Mark that we now have a calculation
@@ -200,12 +353,7 @@ const WorkshopCosts = () => {
       }, 1500);
 
     } catch (error) {
-      console.error('Error saving workshop costs:', error);
-      toast({
-        title: "Error",
-        description: "No se pudieron guardar los datos. Inténtalo de nuevo.",
-        variant: "destructive"
-      });
+      handleError(error, toast, 'saving workshop costs');
     } finally {
       setIsSaving(false);
     }
