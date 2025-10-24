@@ -19,6 +19,7 @@ import {
 import { supabase } from "@/lib/supabase";
 import { useSystemSettings } from "@/hooks/use-system-settings";
 import { useToast } from "@/hooks/use-toast";
+import { DebugOpenAI } from "@/components/DebugOpenAI";
 
 // Función para formatear fechas sin problemas de zona horaria
 const formatDateWithoutTimezone = (dateString: string): string => {
@@ -680,6 +681,19 @@ const AdminDashboard = () => {
                 </div>
               </button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Debug OpenAI Component */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle>🔧 Debug del Servicio de IA</CardTitle>
+            <CardDescription>
+              Herramientas de diagnóstico para verificar la configuración del servicio de extracción de PDF con IA
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <DebugOpenAI />
           </CardContent>
         </Card>
       </div>
