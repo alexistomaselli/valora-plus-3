@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import Terms from "./pages/Terms";
+import Privacy from "./pages/Privacy";
 import AppLayout from "./pages/AppLayout";
 import NewAnalysis from "./pages/NewAnalysis";
 import Verification from "./pages/Verification";
@@ -41,6 +43,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
+            <Route path="/terms" element={<Terms />} />
+            <Route path="/privacy" element={<Privacy />} />
             <Route path="/unauthorized" element={<Unauthorized />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin" element={
