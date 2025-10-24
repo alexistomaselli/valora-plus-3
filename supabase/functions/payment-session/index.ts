@@ -136,7 +136,8 @@ serve(async (req) => {
             product_data: {
               name: finalDescription,
             },
-            unit_amount: Math.round(finalAmount * 100), // Convert to cents
+            //unit_amount: Math.round(finalAmount * 100), // Convert to cents
+            unit_amount: finalAmount,
           },
           quantity: 1,
         },
@@ -154,10 +155,10 @@ serve(async (req) => {
       },
     })
 
-    // Calculate unit price
+    // Calculate unit price (already in cents from database)
     const unitPriceCents = packageData 
-      ? Math.round(Number(packageData.price_per_analysis) * 100)
-      : Math.round(finalAmount * 100)
+      ? Math.round(Number(packageData.price_per_analysis))
+      : Math.round(finalAmount)
 
     // Store payment record
     const { error: paymentError } = await supabaseClient
@@ -167,7 +168,7 @@ serve(async (req) => {
         workshop_id: profile.workshop_id || '00000000-0000-0000-0000-000000000000', // Default UUID if no workshop
         stripe_session_id: session.id,
         stripe_payment_intent_id: session.payment_intent || session.id, // Use session.id as fallback
-        amount_cents: Math.round(finalAmount * 100), // Convert to cents
+        amount_cents: Math.round(finalAmount), // Already in cents from database
         currency: currency,
         status: 'pending',
         analysis_month: new Date().toISOString().slice(0, 7), // YYYY-MM format

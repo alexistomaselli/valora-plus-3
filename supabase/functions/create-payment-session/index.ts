@@ -125,7 +125,7 @@ serve(async (req: any) => {
               name: 'Análisis Adicional',
               description: description || 'Análisis pericial adicional',
             },
-            unit_amount: Math.round(amount * 100), // Convert to cents
+            unit_amount: Math.round(amount), // Already in cents from database
           },
           quantity: 1,
         },
@@ -153,11 +153,11 @@ serve(async (req: any) => {
       workshop_id_param: profile.workshop_id,
       stripe_payment_intent_id_param: session.payment_intent as string,
       stripe_session_id_param: session.id,
-      amount_cents_param: Math.round(amount * 100), // Convert to cents
+      amount_cents_param: Math.round(amount), // Amount already in cents from Stripe
       currency_param: 'EUR',
       analysis_month_param: new Date().toISOString().slice(0, 7), // YYYY-MM
       analyses_purchased_param: 1,
-      unit_price_cents_param: Math.round(amount * 100), // Same as amount for single analysis
+      unit_price_cents_param: Math.round(amount), // Amount already in cents from Stripe
       description_param: description || 'Análisis adicional',
       stripe_customer_id_param: customer.id
     }
