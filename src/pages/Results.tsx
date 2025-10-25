@@ -196,7 +196,9 @@ const Results = () => {
     };
 
     // Calculate total income (from insurance) with validation
-    const ingresos_totales = safeParseFloat(insuranceAmounts.total_with_iva);
+    // IMPORTANTE: Usar net_subtotal (base imponible) para cálculos de rentabilidad
+    // Los cálculos de rentabilidad deben basarse en el subtotal SIN IVA
+    const ingresos_totales = safeParseFloat(insuranceAmounts.net_subtotal);
     
     if (ingresos_totales <= 0) {
       throw createError(

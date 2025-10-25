@@ -214,17 +214,18 @@ const processExtractedData = async (extractedData: any, analysisId: string, sess
     return isNaN(num) ? 21 : num;
   };
 
+  // Usar directamente los valores calculados por la IA en lugar de recalcular
+  const subtotalSinIva = extractedData.insuranceAmounts?.subtotal_sin_iva || 0;
+  const ivaAmount = extractedData.insuranceAmounts?.monto_iva || 0;
+  const totalConIva = extractedData.insuranceAmounts?.total_con_iva || 0;
   const ivaPercentage = extractedData.insuranceAmounts?.porcentaje_iva || 21;
-  const ivaDecimal = ivaPercentage / 100;
 
-  const repuestos = extractedData.insuranceAmounts?.total_repuestos || 0;
-  const moMecanica = extractedData.insuranceAmounts?.mo_chapa_eur || 0;
-  const moPintura = extractedData.insuranceAmounts?.mo_pintura_eur || 0;
-  const matPintura = extractedData.insuranceAmounts?.materiales_pintura_eur || 0;
-  
-  const subtotalSinIva = repuestos + moMecanica + moPintura + matPintura;
-  const ivaAmount = subtotalSinIva * ivaDecimal;
-  const totalConIva = subtotalSinIva + ivaAmount;
+  console.log('=== USANDO VALORES DIRECTOS DE LA IA ===');
+  console.log('Subtotal sin IVA (IA):', subtotalSinIva);
+  console.log('Monto IVA (IA):', ivaAmount);
+  console.log('Total con IVA (IA):', totalConIva);
+  console.log('Porcentaje IVA (IA):', ivaPercentage);
+  console.log('=======================================');
 
   // Guardar datos del vehículo
   const { error: vehicleError } = await supabase
@@ -627,17 +628,41 @@ const NewAnalysis = () => {
               return isNaN(num) ? 21 : num;
             };
 
-            const ivaPercentage = parseIvaPercentage(extractedData.iva);
-            const ivaDecimal = ivaPercentage / 100;
-
-            const repuestos = parseNumber(extractedData.repuestos_total) || 0;
-            const moChapa = parseNumber(extractedData.mo_chapa_eur) || 0;
-            const moPintura = parseNumber(extractedData.mo_pintura_eur) || 0;
-            const matPintura = parseNumber(extractedData.mat_pintura_eur) || 0;
+            // Usar valores directos de la IA si están disponibles, sino calcular
+            let subtotalSinIva, ivaAmount, totalConIva, ivaPercentage;
             
-            const subtotalSinIva = repuestos + moChapa + moPintura + matPintura;
-            const ivaAmount = subtotalSinIva * ivaDecimal;
-            const totalConIva = subtotalSinIva + ivaAmount;
+            if (extractedData.insuranceAmounts?.subtotal_sin_iva) {
+              // Usar valores directos de la IA (formato nuevo)
+              subtotalSinIva = extractedData.insuranceAmounts.subtotal_sin_iva;
+              ivaAmount = extractedData.insuranceAmounts.monto_iva;
+              totalConIva = extractedData.insuranceAmounts.total_con_iva;
+              ivaPercentage = extractedData.insuranceAmounts.porcentaje_iva || 21;
+              
+              console.log('=== USANDO VALORES DIRECTOS DE LA IA (FALLBACK) ===');
+              console.log('Subtotal sin IVA (IA):', subtotalSinIva);
+              console.log('Monto IVA (IA):', ivaAmount);
+              console.log('Total con IVA (IA):', totalConIva);
+              console.log('================================================');
+            } else {
+              // Calcular usando formato antiguo
+              ivaPercentage = parseIvaPercentage(extractedData.iva);
+              const ivaDecimal = ivaPercentage / 100;
+
+              const repuestos = parseNumber(extractedData.repuestos_total) || 0;
+              const moChapa = parseNumber(extractedData.mo_chapa_eur) || 0;
+              const moPintura = parseNumber(extractedData.mo_pintura_eur) || 0;
+              const matPintura = parseNumber(extractedData.mat_pintura_eur) || 0;
+              
+              subtotalSinIva = repuestos + moChapa + moPintura + matPintura;
+              ivaAmount = subtotalSinIva * ivaDecimal;
+              totalConIva = subtotalSinIva + ivaAmount;
+              
+              console.log('=== CALCULANDO CON FORMATO ANTIGUO (FALLBACK) ===');
+              console.log('Subtotal calculado:', subtotalSinIva);
+              console.log('IVA calculado:', ivaAmount);
+              console.log('Total calculado:', totalConIva);
+              console.log('===============================================');
+            }
 
             // Guardar datos del vehículo
             const { error: vehicleError } = await supabase
@@ -750,6 +775,7 @@ const NewAnalysis = () => {
               console.error('Error actualizando balance:', refreshError);
             }
 
+            // Redireccionar automáticamente a verificación
             setTimeout(() => {
               window.location.href = `/app/verificacion/${analysis.id}`;
             }, 1000);
@@ -876,6 +902,7 @@ const NewAnalysis = () => {
         // No mostramos error al usuario ya que el análisis se completó exitosamente
       }
 
+      // Redireccionar automáticamente a verificación
       setTimeout(() => {
         window.location.href = `/app/verificacion/${analysis.id}`;
       }, 1000);

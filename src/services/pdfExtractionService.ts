@@ -143,10 +143,43 @@ DATOS A EXTRAER:
 - materiales_pintura_eur: Importe de materiales de pintura
 - precio_por_hora_chapa: Precio por hora de mano de obra de chapa/mecánica (busca en sección "Mano de obra")
 - precio_por_hora_pintura: Precio por hora de mano de obra de pintura (busca en sección "Pintura")
-- subtotal_sin_iva: Subtotal sin IVA
-- porcentaje_iva: Porcentaje de IVA aplicado
-- monto_iva: Monto del IVA
-- total_con_iva: Total con IVA incluido
+
+🚨 **CRÍTICO - SUBTOTAL SIN IVA:** 🚨
+- subtotal_sin_iva: ¡EXTREMADAMENTE IMPORTANTE! Busca específicamente el subtotal SIN IVA (base imponible).
+  
+  BUSCA ESTOS TÉRMINOS EXACTOS (en orden de prioridad):
+  1. "SUMA TOTAL SIN IVA" / "TOTAL SIN IVA" / "SIN IVA"
+  2. "BASE IMPONIBLE" / "BASE IMP."
+  3. "SUBTOTAL" / "SUBTOTAL ANTES DE IMPUESTOS"
+  4. "NETO" / "IMPORTE NETO"
+  5. "SUMA TOTAL" (cuando aparece ANTES del IVA en el documento)
+  
+  VARIACIONES COMUNES:
+  - "suma total con IVA y suma TOTAL" → usa "suma TOTAL"
+  - "base imponible y total" → usa "base imponible"
+  - "subtotal antes de impuestos y Importe Total Factura" → usa "subtotal antes de impuestos"
+  
+  REGLAS ESTRICTAS:
+  - NUNCA calcules restando IVA del total
+  - Debe ser el valor que aparece ANTES de sumar el IVA
+  - Si hay múltiples subtotales, usa el que está más cerca del cálculo final de IVA
+  Este valor es FUNDAMENTAL para los cálculos de rentabilidad.
+
+- porcentaje_iva: Porcentaje de IVA aplicado. BUSCA:
+  * "% IVA" / "IVA %" / "PORCENTAJE IVA"
+  * Números seguidos de "%" cerca de la palabra IVA
+  * Normalmente 21% en España, pero puede variar
+  
+- monto_iva: Cantidad de IVA en euros. BUSCA:
+  * "IVA" seguido de un importe en euros
+  * "IMPUESTO" / "IMPUESTOS"
+  * El importe que se suma al subtotal para llegar al total
+  
+- total_con_iva: Total final incluyendo IVA. BUSCA:
+  * "SUMA TOTAL CON IVA" / "TOTAL CON IVA"
+  * "TOTAL" / "IMPORTE TOTAL FACTURA"
+  * "TOTAL BRUTO" / "IMPORTE FINAL"
+  * El valor más alto que aparece al final del documento
 - unidades_detectadas: Tipo de unidades encontradas ("UT" si aparece "UT" o "Unidades de Tiempo", "HORAS" si aparece "horas", "hr", "h.", "MIXTO" si aparecen ambos)
 
 RESPONDE ÚNICAMENTE CON UN JSON VÁLIDO EN ESTE FORMATO:
@@ -185,6 +218,39 @@ IMPORTANTE:
 - confidence debe ser un número entre 0 y 1 (ej: 0.95 para alta confianza)
 - warnings debe incluir cualquier incertidumbre sobre los datos extraídos
 - NO incluyas texto adicional, solo el JSON
+
+**ESTRATEGIA DE BÚSQUEDA EN EL TEXTO:**
+    1. Busca la sección final del documento donde aparecen los totales
+    2. Identifica líneas que contengan "SUMA TOTAL", "TOTAL", "SUBTOTAL", "BASE IMPONIBLE"
+    3. Busca números con formato europeo (ej: 2.710,23 o 2710,23)
+    4. Identifica la secuencia: Subtotal → IVA → Total final
+    
+    **EJEMPLO DE EXTRACCIÓN CORRECTA (basado en documento AUDATEX):**
+    En el documento encontrarás algo como:
+    "SUMA TOTAL SIN IVA Euros 2.710,23"
+    "21 % IVA Euros 569,15" 
+    "SUMA TOTAL CON IVA Euros 3.279,38"
+    
+    Debes extraer:
+    - subtotal_sin_iva: 2710.23
+    - porcentaje_iva: 21
+    - monto_iva: 569.15
+    - total_con_iva: 3279.38
+    
+    **PATRONES DE TEXTO A BUSCAR:**
+    - Para subtotal: "SIN IVA.*([0-9.,]+)" o "BASE IMPONIBLE.*([0-9.,]+)"
+    - Para IVA%: "([0-9]+).*%.*IVA" o "IVA.*([0-9]+).*%"
+    - Para monto IVA: "IVA.*([0-9.,]+)" (el número que NO es porcentaje)
+    - Para total: "CON IVA.*([0-9.,]+)" o "TOTAL.*([0-9.,]+)" (el más alto)
+
+🚨 VALIDACIÓN MATEMÁTICA CRÍTICA: 🚨
+Antes de responder, VERIFICA que:
+1. subtotal_sin_iva + monto_iva = total_con_iva (con tolerancia de ±0.01€)
+2. monto_iva = subtotal_sin_iva × (porcentaje_iva / 100) (con tolerancia de ±0.01€)
+3. Si estos cálculos no cuadran, revisa los valores extraídos y añade una advertencia en "warnings"
+4. NUNCA calcules subtotal_sin_iva restando IVA del total - esto es matemáticamente incorrecto
+5. El subtotal_sin_iva debe ser SIEMPRE el valor explícito que aparece en el documento como "SIN IVA" o "BASE IMPONIBLE"
+6. Si encuentras múltiples totales, usa los que aparecen en la sección final de resumen
 `;
   }
 

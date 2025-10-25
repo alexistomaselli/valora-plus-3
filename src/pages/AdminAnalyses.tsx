@@ -51,7 +51,16 @@ function sumCost(row: AnalysisRow) {
 }
 
 function income(row: AnalysisRow) {
-  return toNumber(row.total_with_iva);
+  // IMPORTANTE: Usar net_subtotal (base imponible) para cálculos de rentabilidad
+  // Los cálculos de rentabilidad deben basarse en el subtotal SIN IVA
+  const netSubtotal = toNumber(row.net_subtotal);
+  if (netSubtotal > 0) {
+    return netSubtotal;
+  }
+  
+  // Solo como fallback si net_subtotal no está disponible
+  console.warn('net_subtotal no disponible para análisis:', row.id);
+  return 0;
 }
 
 function getCalculationStatus(row: AnalysisRow) {

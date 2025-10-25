@@ -569,7 +569,7 @@ const MyAccount = () => {
                   </div>
 
                   {/* Información de pago pendiente o paquetes para admin_mechanic */}
-                  {profile?.role === 'admin_mechanic' && analysisBalance.totalAnalysesAvailable === 0 ? (
+                  {profile?.role === 'admin_mechanic' && analysisBalance.totalAnalysesAvailable === 0 && (
                     <div className="space-y-2 pt-2 border-t">
                       <div className="flex justify-between text-sm">
                         <span>Análisis disponibles</span>
@@ -602,11 +602,6 @@ const MyAccount = () => {
                         )}
                       </div>
                     </div>
-                  ) : analysisBalance.totalAmountDue > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span>Importe pendiente</span>
-                      <span className="font-medium">€{analysisBalance.totalAmountDue.toFixed(2)}</span>
-                    </div>
                   )}
                 </>
               ) : (
@@ -635,12 +630,7 @@ const MyAccount = () => {
                         <span>Análisis de pago</span>
                         <span>{userData.paidAnalyses}</span>
                       </div>
-                      {userData.totalAmountDue > 0 && (
-                        <div className="flex justify-between text-sm">
-                          <span>Importe pendiente</span>
-                          <span className="font-medium">€{userData.totalAmountDue.toFixed(2)}</span>
-                        </div>
-                      )}
+
                     </div>
                   )}
                 </>

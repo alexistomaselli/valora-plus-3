@@ -52,11 +52,18 @@ function sumCost(row: AnalysisRow) {
 function income(row: AnalysisRow) {
   const ia = row.insurance_amounts?.[0];
   if (!ia) return 0;
+  
+  // IMPORTANTE: Siempre usar net_subtotal (base imponible) para cálculos de rentabilidad
+  // NUNCA restar IVA del total, ya que esto es matemáticamente incorrecto
   const net = ia.net_subtotal;
-  if (typeof net === "number" && !Number.isNaN(net)) return net;
-  const totalWithIva = ia.total_with_iva ?? 0;
-  const ivaAmount = ia.iva_amount ?? 0;
-  return Math.max(0, totalWithIva - ivaAmount);
+  if (typeof net === "number" && !Number.isNaN(net) && net > 0) {
+    return net;
+  }
+  
+  // Solo como fallback si net_subtotal no está disponible
+  // pero esto indica un problema en la extracción de datos
+  console.warn('net_subtotal no disponible para análisis:', row.id);
+  return 0;
 }
 
 const AdminWorkshopAnalyses = () => {
