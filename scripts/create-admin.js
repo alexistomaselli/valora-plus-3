@@ -14,8 +14,8 @@ async function createAdminUser() {
   try {
     // 1. Registrar el usuario
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: 'dydsoftware1@gmail.com',
-      password: 'admin123',
+      email: 'emilio@expertpericial.com',
+      password: 'Admin123',
     });
 
     if (authError) {
@@ -30,7 +30,7 @@ async function createAdminUser() {
       .from('profiles')
       .update({ 
         role: 'admin',
-        full_name: 'Admin'
+        full_name: 'Emiliano Garcia'
       })
       .eq('id', authData.user.id);
 
@@ -39,11 +39,11 @@ async function createAdminUser() {
       return;
     }
 
-    console.log('Perfil actualizado exitosamente con rol de administrador y nombre "Admin"');
-    console.log('Email:', 'dydsoftware1@gmail.com');
-    console.log('Password:', 'admin123');
+    console.log('Perfil actualizado exitosamente con rol de administrador');
+    console.log('Email:', 'emilio@expertpericial.com');
+    console.log('Password:', 'TempAdmin123!');
     console.log('Rol:', 'admin');
-    console.log('Nombre:', 'Admin');
+    console.log('Nombre:', 'Emiliano Garcia');
   } catch (error) {
     console.error('Error inesperado:', error);
   }

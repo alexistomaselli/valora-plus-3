@@ -11,6 +11,8 @@ import { supabase } from "@/lib/supabase";
 import { useToast } from "@/hooks/use-toast";
 import { useMonthlyUsage } from "@/hooks/use-monthly-usage";
 import { useAnalysisBalance } from "@/hooks/use-analysis-balance";
+import { useAnalysisPackages } from "@/hooks/use-analysis-packages";
+import PackageSelectionModal from "@/components/PackageSelectionModal";
 
 interface Analysis {
   id: string;
@@ -49,6 +51,7 @@ const MyAccount = () => {
   const { toast } = useToast();
   const { usage: monthlyUsage, loading: usageLoading, refreshUsage } = useMonthlyUsage();
   const { balance: analysisBalance, loading: balanceLoading } = useAnalysisBalance();
+  const { packages, loading: packagesLoading } = useAnalysisPackages();
   
   const [userAnalyses, setUserAnalyses] = useState<AnalysisWithCalculations[]>([]);
   const [analysesLoading, setAnalysesLoading] = useState(true);
@@ -64,6 +67,9 @@ const MyAccount = () => {
     workshop_phone: '',
     workshop_address: ''
   });
+
+  // Estado para el modal de paquetes
+  const [showPackageModal, setShowPackageModal] = useState(false);
 
   // Load user's analyses
   useEffect(() => {
@@ -562,8 +568,41 @@ const MyAccount = () => {
                     </div>
                   </div>
 
-                  {/* Información de pago pendiente */}
-                  {analysisBalance.totalAmountDue > 0 && (
+                  {/* Información de pago pendiente o paquetes para admin_mechanic */}
+                  {profile?.role === 'admin_mechanic' && analysisBalance.totalAnalysesAvailable === 0 ? (
+                    <div className="space-y-2 pt-2 border-t">
+                      <div className="flex justify-between text-sm">
+                        <span>Análisis disponibles</span>
+                        <span className="text-destructive font-medium">0 análisis</span>
+                      </div>
+                      <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded-lg border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center gap-2 text-blue-800 dark:text-blue-200 mb-2">
+                          <Crown className="h-4 w-4" />
+                          <span className="text-sm font-medium">Comprar Paquete de Análisis</span>
+                        </div>
+                        {packagesLoading ? (
+                          <p className="text-xs text-blue-700 dark:text-blue-300">Cargando paquetes...</p>
+                        ) : packages.length > 0 ? (
+                          <div className="space-y-1">
+                            <p className="text-xs text-blue-700 dark:text-blue-300">
+                              Paquetes disponibles desde €{(packages[0]?.total_price / 100).toFixed(2)}
+                            </p>
+                            <Button 
+                              size="sm" 
+                              className="w-full mt-2"
+                              onClick={() => setShowPackageModal(true)}
+                            >
+                              Ver Paquetes
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-blue-700 dark:text-blue-300">
+                            Contacta con soporte para obtener más análisis
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  ) : analysisBalance.totalAmountDue > 0 && (
                     <div className="flex justify-between text-sm">
                       <span>Importe pendiente</span>
                       <span className="font-medium">€{analysisBalance.totalAmountDue.toFixed(2)}</span>
@@ -753,6 +792,17 @@ const MyAccount = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Modal de selección de paquetes */}
+      <PackageSelectionModal
+        open={showPackageModal}
+        onOpenChange={setShowPackageModal}
+        onSuccess={() => {
+          setShowPackageModal(false);
+          // Refresh balance after successful payment
+          refreshUsage();
+        }}
+      />
     </div>
   );
 };
