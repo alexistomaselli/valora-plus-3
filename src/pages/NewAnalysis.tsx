@@ -371,9 +371,17 @@ const NewAnalysis = () => {
     setDragActive(false);
     
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      // Verificar si el usuario puede crear un análisis gratuito ANTES de procesar el archivo
+      if (!canCreateAnalysis()) {
+        // Si no puede, mostrar directamente el modal de pago sin procesar el archivo
+        setShowPaymentModal(true);
+        return;
+      }
+      
+      // Si puede crear análisis, procesar el archivo normalmente
       handleFile(e.dataTransfer.files[0]);
     }
-  }, []);
+  }, [canCreateAnalysis]);
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
@@ -403,14 +411,7 @@ const NewAnalysis = () => {
     }
 
     setUploadedFile(file);
-
-    // Verificar si el usuario puede crear un análisis gratuito
-    if (canCreateAnalysis()) {
-      uploadFile(file);
-    } else {
-      // Mostrar modal de pago
-      setShowPaymentModal(true);
-    }
+    uploadFile(file);
   };
 
 

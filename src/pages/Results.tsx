@@ -94,6 +94,7 @@ const Results = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ResultsData | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const { toast } = useToast();
   const contentRef = useRef<HTMLDivElement>(null);
 
@@ -114,6 +115,11 @@ const Results = () => {
           .single();
 
         if (analysisError) throw analysisError;
+
+        // Store the PDF URL if available
+        if (analysis?.pdf_url) {
+          setPdfUrl(analysis.pdf_url);
+        }
 
         // Load vehicle data
         const { data: vehicleData, error: vehicleError } = await supabase
@@ -401,6 +407,20 @@ const Results = () => {
     }
   };
 
+  const handleOpenOriginalPDF = () => {
+    if (!pdfUrl) {
+      toast({
+        title: "PDF no disponible",
+        description: "No hay un PDF original asociado a este análisis",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Abrir el PDF en una nueva pestaña
+    window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+  };
+
 
 
   // Loading state
@@ -484,6 +504,17 @@ const Results = () => {
             </Button>
           </Link>
 
+          {pdfUrl && (
+            <Button 
+              onClick={handleOpenOriginalPDF}
+              variant="outline"
+              className="border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Ver Valoración
+            </Button>
+          )}
+
           <Button 
             onClick={handleDownloadPDF}
             disabled={isDownloading}
@@ -513,7 +544,7 @@ const Results = () => {
               <div>
                 <p className="text-sm text-muted-foreground mb-1">Ingresos Totales</p>
                 <p className="text-2xl font-bold text-foreground">{formatCurrency(results.ingresos_totales)}</p>
-                <p className="text-xs text-muted-foreground mt-1">Importe aseguradora (Bruto)</p>
+                <p className="text-xs text-muted-foreground mt-1">Importe aseguradora (Base Imponible)</p>
               </div>
               <div className="p-3 bg-primary/10 rounded-full">
                 <TrendingUp className="h-6 w-6 text-primary" />

@@ -17,6 +17,7 @@ import PackageSelectionModal from "@/components/PackageSelectionModal";
 interface Analysis {
   id: string;
   created_at: string;
+  pdf_url?: string;
   vehicle_data: {
     license_plate: string;
     internal_reference: string;
@@ -43,6 +44,7 @@ interface AnalysisWithCalculations extends Analysis {
   margen_eur: number;
   margen_pct: number;
   status: string;
+  pdf_url?: string;
 }
 
 const MyAccount = () => {
@@ -86,6 +88,7 @@ const MyAccount = () => {
           .select(`
             id,
             created_at,
+            pdf_url,
             vehicle_data (
               license_plate,
               internal_reference
@@ -161,7 +164,8 @@ const MyAccount = () => {
             fecha: analysis.created_at,
             margen_eur,
             margen_pct,
-            status
+            status,
+            pdf_url: analysis.pdf_url
           };
         });
 
@@ -309,6 +313,19 @@ const MyAccount = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  // Función para abrir el PDF original
+  const handleOpenOriginalPDF = (pdfUrl: string | null | undefined) => {
+    if (pdfUrl) {
+      window.open(pdfUrl, '_blank');
+    } else {
+      toast({
+        title: "PDF no disponible",
+        description: "No hay un PDF original disponible para este análisis.",
+        variant: "destructive",
+      });
+    }
   };
 
   // Cálculos dinámicos - solo incluir análisis completados
@@ -735,6 +752,17 @@ const MyAccount = () => {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
+                      {analysis.pdf_url && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenOriginalPDF(analysis.pdf_url!)}
+                            className="flex items-center gap-2"
+                          >
+                            <FileText className="h-4 w-4" />
+                            Ver Valoración
+                          </Button>
+                        )}
                       {analysis.status === 'completed' ? (
                         <Link to={`/app/resultados/${analysis.id}`}>
                           <Button variant="outline" size="sm">
