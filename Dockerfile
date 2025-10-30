@@ -13,7 +13,7 @@ ARG STRIPE_WEBHOOK_SECRET
 # Validar que las variables requeridas estén presentes
 RUN if [ -z "$VITE_SUPABASE_URL" ]; then echo "ERROR: VITE_SUPABASE_URL is required" && exit 1; fi
 RUN if [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then echo "ERROR: VITE_SUPABASE_PUBLISHABLE_KEY is required" && exit 1; fi
-RUN if [ -z "$VITE_OPENAI_API_KEY" ]; then echo "ERROR: VITE_OPENAI_API_KEY is required" && exit 1; fi
+# Nota: VITE_OPENAI_API_KEY ahora es opcional; usamos Edge Function en producción
 
 # Set environment variables
 ENV VITE_SUPABASE_URL=$VITE_SUPABASE_URL
