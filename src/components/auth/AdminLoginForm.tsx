@@ -44,13 +44,13 @@ export function AdminLoginForm() {
     setIsSubmitting(true);
     
     try {
-      console.log('🔐 AdminLoginForm: Intentando iniciar sesión como administrador...');
+      //console.log('🔐 AdminLoginForm: Intentando iniciar sesión como administrador...');
       
       // Intentar iniciar sesión suprimiendo el toast de éxito automático
       const result = await signIn(values.email, values.password, { suppressSuccessToast: true });
       
       if (result.success) {
-        console.log('🔐 AdminLoginForm: Login exitoso, verificando rol de administrador...');
+        //console.log('🔐 AdminLoginForm: Login exitoso, verificando rol de administrador...');
         
         // Verificar que el usuario tenga rol de administrador
         const { data: { user } } = await supabase.auth.getUser();

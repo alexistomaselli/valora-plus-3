@@ -45,7 +45,7 @@ export const useAnalysisBalance = () => {
         throw monthlyError;
       }
 
-      console.log('Monthly data:', monthlyData);
+      //console.log('Monthly data:', monthlyData);
 
       if (monthlyData) {
         const usageData = monthlyData as any; // Cast para acceder a las propiedades
@@ -74,7 +74,7 @@ export const useAnalysisBalance = () => {
           month: usageData.month || new Date().getMonth() + 1
         };
 
-        console.log('Final analysis balance:', analysisBalance);
+        //console.log('Final analysis balance:', analysisBalance);
         setBalance(analysisBalance);
       }
     } catch (err) {

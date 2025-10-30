@@ -128,7 +128,7 @@ const AdminDashboard = () => {
         return;
       }
 
-      console.log('🔐 Usuario autenticado:', user.email);
+      //console.log('🔐 Usuario autenticado:', user.email);
 
       // Crear timeout promise
       const timeoutPromise = new Promise((_, reject) => 
@@ -138,7 +138,7 @@ const AdminDashboard = () => {
 
 
       // Obtener total de talleres con timeout
-      console.log('📊 Obteniendo total de talleres...');
+      //console.log('📊 Obteniendo total de talleres...');
       let workshopsCount = 0, workshopsError = null;
       try {
         const result = await Promise.race([
@@ -155,11 +155,11 @@ const AdminDashboard = () => {
       if (workshopsError) {
         console.error('❌ Error obteniendo talleres:', workshopsError);
       } else {
-        console.log('✅ Talleres obtenidos:', workshopsCount);
+        //console.log('✅ Talleres obtenidos:', workshopsCount);
       }
 
       // Obtener total de análisis con timeout
-      console.log('📊 Obteniendo total de análisis...');
+      //console.log('📊 Obteniendo total de análisis...');
       let analysisCount = 0, analysisError = null;
       try {
         const result = await Promise.race([
