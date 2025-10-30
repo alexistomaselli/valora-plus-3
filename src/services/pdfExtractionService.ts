@@ -1,5 +1,6 @@
 // Servicio de extracción de datos de PDFs usando IA
 // Reemplaza la funcionalidad de n8n para procesar PDFs de valoración pericial
+import { supabase } from '../lib/supabase';
 
 export interface VehicleData {
   matricula: string;
@@ -46,17 +47,7 @@ export interface ExtractionError {
 }
 
 class PDFExtractionService {
-  private apiKey: string;
-  private baseUrl = 'https://api.openai.com/v1/chat/completions';
-
-  constructor() {
-    // La API key se debe configurar en las variables de entorno
-    this.apiKey = import.meta.env.VITE_OPENAI_API_KEY || '';
-    
-    if (!this.apiKey) {
-      console.warn('VITE_OPENAI_API_KEY no está configurada. El servicio de extracción no funcionará.');
-    }
-  }
+  constructor() {}
 
   /**
    * Extrae datos estructurados de texto de un PDF de valoración pericial
@@ -67,10 +58,7 @@ class PDFExtractionService {
     console.log('📄 Longitud del texto recibido:', pdfText?.length || 0);
     console.log('📄 Primeros 500 caracteres del texto:', pdfText?.substring(0, 500));
     
-    if (!this.apiKey) {
-      console.error('❌ API key de OpenAI no configurada');
-      throw this.createError('API_ERROR', 'API key de OpenAI no configurada');
-    }
+    // Usamos exclusivamente la función Edge segura de Supabase.
 
     if (!pdfText || pdfText.trim().length === 0) {
       console.error('❌ Texto del PDF vacío o no válido');
@@ -258,44 +246,26 @@ Antes de responder, VERIFICA que:
    * Llama a la API de OpenAI
    */
   private async callOpenAI(prompt: string): Promise<string> {
-    try {
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'user',
-              content: prompt
-            }
-          ],
-          temperature: 0.1, // Baja temperatura para mayor consistencia
-          max_tokens: 2000,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
+    const { data, error } = await supabase.functions.invoke('openai-chat', {
+      body: {
+        model: 'gpt-4o',
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 2000,
       }
+    });
 
-      const data = await response.json();
-      
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        throw new Error('Respuesta inválida de OpenAI API');
-      }
-
-      return data.choices[0].message.content;
-    } catch (error) {
-      if (error instanceof Error) {
-        throw error;
-      }
-      throw new Error('Error de red al conectar con OpenAI');
+    if (error) {
+      throw error;
     }
+
+    if (!data?.choices || !data.choices[0]?.message?.content) {
+      throw new Error('Respuesta inválida de OpenAI (Edge Function)');
+    }
+
+    return data.choices[0].message.content as string;
   }
 
   /**
@@ -460,7 +430,7 @@ Antes de responder, VERIFICA que:
    * Verifica si el servicio está configurado correctamente
    */
   isConfigured(): boolean {
-    return !!this.apiKey;
+    return true;
   }
 
   /**

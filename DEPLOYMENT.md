@@ -76,3 +76,28 @@ Una vez deployado, verifica que:
 - `VITE_SUPABASE_PROJECT_ID`: ID del proyecto Supabase
 
 **Nota**: Estas variables son necesarias durante el build porque Vite las embebe en el código JavaScript compilado.
+
+## OpenAI vía Edge Function (seguro)
+
+Para evitar exponer la clave de OpenAI en el cliente, usamos una función Edge de Supabase que actúa como proxy.
+
+### Pasos de configuración
+
+1. Configurar el secreto en Supabase (desde tu máquina con el CLI autenticado):
+   ```bash
+   supabase secrets set OPENAI_API_KEY=<tu_clave_de_openai>
+   ```
+
+2. Deploy de la función `openai-chat`:
+   ```bash
+   supabase functions deploy openai-chat
+   ```
+
+3. Verificar invocación desde el frontend:
+   - El servicio `pdfExtractionService` invoca `supabase.functions.invoke('openai-chat', { body: { model, messages, ... } })`.
+   - No se utiliza ninguna API key de OpenAI en el cliente; todas las llamadas pasan por la Edge Function.
+
+### Notas
+- El `Dockerfile` ya no requiere `VITE_OPENAI_API_KEY` para el build.
+- El fallback directo desde el cliente ha sido eliminado para evitar cualquier referencia a claves en el repositorio.
+- Asegúrate de revisar los logs en Supabase para monitorear el uso y errores de la función.
