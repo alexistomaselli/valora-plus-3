@@ -14,17 +14,11 @@ export function DebugOpenAI() {
 
     try {
       const diagnostics = {
-        // Verificar variables de entorno
-        hasApiKey: !!import.meta.env.VITE_OPENAI_API_KEY,
-        apiKeyLength: import.meta.env.VITE_OPENAI_API_KEY?.length || 0,
-        apiKeyPrefix: import.meta.env.VITE_OPENAI_API_KEY?.substring(0, 7) || 'N/A',
-        
         // Verificar configuración del servicio
         isServiceConfigured: isPDFExtractionConfigured(),
         
-        // Variables de entorno disponibles
+        // Variables de entorno relevantes
         envVars: {
-          VITE_OPENAI_API_KEY: import.meta.env.VITE_OPENAI_API_KEY ? 'Configurada' : 'No configurada',
           VITE_SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL ? 'Configurada' : 'No configurada',
           NODE_ENV: import.meta.env.NODE_ENV || 'N/A',
           MODE: import.meta.env.MODE || 'N/A',
@@ -69,7 +63,7 @@ export function DebugOpenAI() {
     <Card className="w-full max-w-4xl mx-auto">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          🔧 Debug OpenAI Service
+          🔧 Debug Servicio de IA (Edge)
           <Badge variant={isPDFExtractionConfigured() ? "default" : "destructive"}>
             {isPDFExtractionConfigured() ? "Configurado" : "No Configurado"}
           </Badge>
@@ -105,7 +99,7 @@ export function DebugOpenAI() {
         <div className="mt-4 p-4 bg-blue-50 rounded-lg">
           <h4 className="font-semibold text-blue-800 mb-2">Información de Debug:</h4>
           <div className="text-sm text-blue-700 space-y-1">
-            <p><strong>API Key configurada:</strong> {isPDFExtractionConfigured() ? "✅ Sí" : "❌ No"}</p>
+            <p><strong>Servicio configurado:</strong> {isPDFExtractionConfigured() ? "✅ Sí" : "❌ No"}</p>
             <p><strong>Entorno:</strong> {import.meta.env.MODE}</p>
             <p><strong>URL actual:</strong> {window.location.origin}</p>
           </div>

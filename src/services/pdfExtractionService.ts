@@ -47,25 +47,7 @@ export interface ExtractionError {
 }
 
 class PDFExtractionService {
-  private apiKey: string;
-  private baseUrl = 'https://api.openai.com/v1/chat/completions';
-  private allowClientFallback: boolean;
-
-  constructor() {
-    // Por defecto, desactivamos el fallback directo desde cliente.
-    // Si necesitas probar en desarrollo, puedes activar: VITE_ALLOW_CLIENT_OPENAI_FALLBACK=true
-    this.allowClientFallback = import.meta.env.VITE_ALLOW_CLIENT_OPENAI_FALLBACK === 'true';
-    // La API key del cliente solo se lee si el fallback está activado explícitamente
-    this.apiKey = this.allowClientFallback ? (import.meta.env.VITE_OPENAI_API_KEY || '') : '';
-    
-    if (this.allowClientFallback && !this.apiKey) {
-      console.warn('VITE_OPENAI_API_KEY no está configurada; el fallback directo no funcionará.');
-    }
-
-    if (!this.allowClientFallback && this.apiKey) {
-      console.warn('VITE_OPENAI_API_KEY detectada en cliente, pero el fallback está deshabilitado; se usará únicamente la Edge Function.');
-    }
-  }
+  constructor() {}
 
   /**
    * Extrae datos estructurados de texto de un PDF de valoración pericial
@@ -76,10 +58,7 @@ class PDFExtractionService {
     console.log('📄 Longitud del texto recibido:', pdfText?.length || 0);
     console.log('📄 Primeros 500 caracteres del texto:', pdfText?.substring(0, 500));
     
-    // Nota: si no hay API key en cliente, usaremos la función Edge segura.
-    if (!this.apiKey) {
-      console.warn('⚠️ API key de OpenAI no configurada en cliente. Se usará la función Edge.');
-    }
+    // Usamos exclusivamente la función Edge segura de Supabase.
 
     if (!pdfText || pdfText.trim().length === 0) {
       console.error('❌ Texto del PDF vacío o no válido');
@@ -267,67 +246,26 @@ Antes de responder, VERIFICA que:
    * Llama a la API de OpenAI
    */
   private async callOpenAI(prompt: string): Promise<string> {
-    // Preferir proxy seguro vía Supabase Edge Function
-    try {
-      const { data, error } = await supabase.functions.invoke('openai-chat', {
-        body: {
-          model: 'gpt-4o',
-          messages: [
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.1,
-          max_tokens: 2000,
-        }
-      });
-
-      if (error) {
-        console.warn('openai-chat function error, intentando fallback directo:', error);
-        throw error;
+    const { data, error } = await supabase.functions.invoke('openai-chat', {
+      body: {
+        model: 'gpt-4o',
+        messages: [
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.1,
+        max_tokens: 2000,
       }
+    });
 
-      if (!data?.choices || !data.choices[0]?.message?.content) {
-        throw new Error('Respuesta inválida de OpenAI (Edge Function)');
-      }
-
-      return data.choices[0].message.content as string;
-    } catch (_fnErr) {
-      // Fallback directo desde cliente está desactivado por defecto para proteger la key.
-      if (!this.allowClientFallback) {
-        throw new Error('Fallo la función Edge y el fallback directo está deshabilitado');
-      }
-
-      // Solo realizar fallback si explícitamente permitido y existe API key en cliente
-      if (!this.apiKey) {
-        throw new Error('Fallo la función Edge y no hay API key en cliente');
-      }
-
-      const response = await fetch(this.baseUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            { role: 'user', content: prompt }
-          ],
-          temperature: 0.1,
-          max_tokens: 2000,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`OpenAI API error: ${response.status} - ${errorData.error?.message || 'Unknown error'}`);
-      }
-
-      const data = await response.json();
-      if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-        throw new Error('Respuesta inválida de OpenAI API');
-      }
-      return data.choices[0].message.content;
+    if (error) {
+      throw error;
     }
+
+    if (!data?.choices || !data.choices[0]?.message?.content) {
+      throw new Error('Respuesta inválida de OpenAI (Edge Function)');
+    }
+
+    return data.choices[0].message.content as string;
   }
 
   /**

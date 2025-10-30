@@ -85,7 +85,7 @@ Para evitar exponer la clave de OpenAI en el cliente, usamos una función Edge d
 
 1. Configurar el secreto en Supabase (desde tu máquina con el CLI autenticado):
    ```bash
-   supabase secrets set OPENAI_API_KEY=sk-xxxx
+   supabase secrets set OPENAI_API_KEY=<tu_clave_de_openai>
    ```
 
 2. Deploy de la función `openai-chat`:
@@ -95,9 +95,9 @@ Para evitar exponer la clave de OpenAI en el cliente, usamos una función Edge d
 
 3. Verificar invocación desde el frontend:
    - El servicio `pdfExtractionService` invoca `supabase.functions.invoke('openai-chat', { body: { model, messages, ... } })`.
-   - No es necesario `VITE_OPENAI_API_KEY` en producción.
+   - No se utiliza ninguna API key de OpenAI en el cliente; todas las llamadas pasan por la Edge Function.
 
 ### Notas
 - El `Dockerfile` ya no requiere `VITE_OPENAI_API_KEY` para el build.
-- Si la función falla y estás en local, existe un fallback que usa `VITE_OPENAI_API_KEY` si está disponible.
+- El fallback directo desde el cliente ha sido eliminado para evitar cualquier referencia a claves en el repositorio.
 - Asegúrate de revisar los logs en Supabase para monitorear el uso y errores de la función.
